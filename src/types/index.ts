@@ -24,6 +24,8 @@ export interface MeResponse {
   syncing: boolean;
   /** Song-Anfang über Spotify (Web Playback SDK) möglich? */
   playback: { canStream: boolean; reason?: 'scope' | 'premium' };
+  /** Anzahl ausgewählter Quellen (Lieblingssongs/Playlists); 0 = Auswahl nötig */
+  sourceCount: number;
 }
 
 export type PlaybackSource = 'preview' | 'start';
@@ -86,4 +88,33 @@ export interface HistoryEntry {
   score: number;
   correctCount: number;
   createdAt: string;
+}
+
+export const LIKED_SOURCE = 'liked';
+
+export interface PlaylistInfo {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  trackCount: number;
+  ownerName: string | null;
+  /** Spotify gibt nur eigene oder gemeinsame Playlists frei */
+  selectable: boolean;
+  selected: boolean;
+}
+
+export interface SelectedSource {
+  id: string;
+  name: string;
+  trackCount: number | null;
+  syncedAt: string | null;
+  error: string | null;
+}
+
+export interface PlaylistsResponse {
+  missingScope: boolean;
+  syncing: boolean;
+  sources: SelectedSource[];
+  playlists: PlaylistInfo[];
+  liked: { selected: boolean };
 }

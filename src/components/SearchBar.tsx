@@ -103,7 +103,7 @@ export default function SearchBar({ disabled, onGuess, children }: Props) {
                 </span>
               </li>
             ))}
-            {!loading && results.length === 0 && <li className="autocomplete-item empty">Kein Treffer in deinen Liked Songs</li>}
+            {!loading && results.length === 0 && <li className="autocomplete-item empty">Kein Treffer in deinen Playlists</li>}
           </ul>
         )}
       </div>

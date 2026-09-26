@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate } from 're
 import Game from './pages/Game';
 import Login, { SpotifyLogo } from './pages/Login';
 import LogoutPage from './pages/LogoutPage';
+import Playlists from './pages/Playlists';
 import Stats from './pages/Stats';
 import { getToken, setToken } from './utils/api';
 
@@ -31,6 +32,7 @@ function Protected({ children, header = true }: { children: ReactNode; header?: 
         </NavLink>
         <nav>
           <NavLink to="/game">Spiel</NavLink>
+          <NavLink to="/playlists">Playlists</NavLink>
           <NavLink to="/stats">Statistiken</NavLink>
           <NavLink to="/logout" className="logout-link" title="Abmelden" aria-label="Abmelden">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -53,6 +55,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/game" element={<Protected><Game /></Protected>} />
+        <Route path="/playlists" element={<Protected><Playlists /></Protected>} />
         <Route path="/stats" element={<Protected><Stats /></Protected>} />
         <Route path="/logout" element={<Protected header={false}><LogoutPage /></Protected>} />
         <Route path="*" element={<Navigate to={getToken() ? '/game' : '/login'} replace />} />

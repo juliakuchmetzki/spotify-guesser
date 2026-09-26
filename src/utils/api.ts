@@ -5,6 +5,7 @@ import type {
   Highscore,
   HistoryEntry,
   MeResponse,
+  PlaylistsResponse,
   Song,
 } from '../types';
 
@@ -71,6 +72,12 @@ export const userApi = {
   spotifyToken: () => api.get<{ accessToken: string }>('/user/spotify-token').then((r) => r.data.accessToken),
 };
 
+export const playlistApi = {
+  list: () => api.get<PlaylistsResponse>('/playlists').then((r) => r.data),
+  /** Auswahl speichern; die Songs werden danach im Hintergrund geladen */
+  save: (sourceIds: string[]) => api.put('/playlists/selection', { sourceIds }),
+};
+
 export const songApi = {
   search: (q: string, signal?: AbortSignal) =>
     api.get<{ songs: Song[] }>('/songs/search', { params: { q }, signal }).then((r) => r.data.songs),
@@ -79,7 +86,8 @@ export const songApi = {
 
 export const gameApi = {
   active: () => api.get<{ state: GameSession | null }>('/games/active').then((r) => r.data.state),
-  start: () => api.post<{ state: GameSession }>('/games/start').then((r) => r.data.state),
+  /** spotify = Audio kommt über das Web Playback SDK → auch Songs ohne Deezer-Preview sind möglich */
+  start: (spotify = false) => api.post<{ state: GameSession }>('/games/start', { spotify }).then((r) => r.data.state),
   play: (sessionId: number, duration: number) =>
     api.post<{ state: GameSession }>('/games/play', { session_id: sessionId, duration }).then((r) => r.data.state),
   guess: (sessionId: number, guess: string, songId?: number) =>

@@ -4,6 +4,7 @@ import type { PlaybackMode } from './useSongAudio';
 
 const SDK_URL = 'https://sdk.scdn.co/spotify-player.js';
 const START_TIMEOUT_MS = 6000;
+const CONNECT_TIMEOUT_MS = 10000;
 
 export type SpotifyUnavailableReason = 'unsupported' | 'premium' | 'auth' | 'error';
 
@@ -58,8 +59,13 @@ export function useSpotifyPlayback(enabled: boolean, sessionId: number | null, t
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    let ready = false;
     setStatus('loading');
     setReason(null);
+    // Kommt der Player nicht zustande (Netzwerk, Blocker …), nicht ewig warten → Preview
+    const connectTimeout = window.setTimeout(() => {
+      if (!cancelled && !ready) fail('error');
+    }, CONNECT_TIMEOUT_MS);
 
     loadSdk()
       .then(() => {
@@ -73,6 +79,8 @@ export function useSpotifyPlayback(enabled: boolean, sessionId: number | null, t
         });
         player.addListener('ready', ({ device_id }) => {
           deviceRef.current = device_id;
+          ready = true;
+          window.clearTimeout(connectTimeout);
           if (!cancelled) setStatus('ready');
         });
         player.addListener('not_ready', () => {
@@ -92,6 +100,7 @@ export function useSpotifyPlayback(enabled: boolean, sessionId: number | null, t
 
     return () => {
       cancelled = true;
+      window.clearTimeout(connectTimeout);
       window.clearTimeout(pauseTimerRef.current);
       playerRef.current?.disconnect();
       playerRef.current = null;

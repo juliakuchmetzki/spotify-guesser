@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import AudioPlayer, { type ClipPlayer } from '../components/AudioPlayer';
 import ResultModal from '../components/ResultModal';
 import SearchBar from '../components/SearchBar';
@@ -13,11 +13,13 @@ import { LOGIN_URL } from '../utils/api';
 const LAST_INDEX = SNIPPET_DURATIONS.length - 1;
 const SOURCE_KEY = 'previewMode';
 
-function loadSource(): PlaybackSource {
+/** Gespeicherte Wahl; null = noch nie gewählt → Spotify, wenn verfügbar */
+function loadSource(): PlaybackSource | null {
   try {
-    return localStorage.getItem(SOURCE_KEY) === 'start' ? 'start' : 'preview';
+    const value = localStorage.getItem(SOURCE_KEY);
+    return value === 'start' || value === 'preview' ? value : null;
   } catch {
-    return 'preview';
+    return null;
   }
 }
 
@@ -111,10 +113,15 @@ export default function Game() {
   const trackToken = session?.trackToken ?? null;
   const audio = useSongAudio(activeSessionId, trackToken);
 
-  // „Preview“ (30 s aus der Songmitte, sample-genau) oder „Anfang“ (ab 0:00 über Spotify, Premium)
-  const [source, setSource] = useState<PlaybackSource>(loadSource);
+  // „Anfang“ (ab 0:00 über Spotify, Premium) ist Standard, sobald verfügbar; sonst „Preview“ (Deezer, 30 s)
+  const [storedSource, setStoredSource] = useState<PlaybackSource | null>(loadSource);
   const canStream = me?.playback.canStream ?? false;
-  const spotify = useSpotifyPlayback(source === 'start' && canStream && activeSessionId != null, activeSessionId, trackToken);
+  const source: PlaybackSource = storedSource ?? (canStream ? 'start' : 'preview');
+  // Player schon vor dem Spielstart verbinden, damit feststeht, ob Spotify wirklich geht
+  const spotify = useSpotifyPlayback(source === 'start' && canStream, activeSessionId, trackToken);
+  const spotifyReady = source === 'start' && canStream && spotify.status === 'ready';
+  const spotifyPending = source === 'start' && canStream && (spotify.status === 'idle' || spotify.status === 'loading');
+  const startGame = (resume = false) => void game.start(resume, spotifyReady);
 
   let clipPlayer: ClipPlayer = audio;
   let sourceNote: ReactNode;
@@ -130,7 +137,7 @@ export default function Game() {
   const changeSource = (next: PlaybackSource) => {
     audio.stop();
     spotify.stop();
-    setSource(next);
+    setStoredSource(next);
     saveSource(next);
   };
 
@@ -143,27 +150,37 @@ export default function Game() {
   const playable = me?.stats.playableCount ?? 0;
   const autoStarted = useRef(false);
 
-  // Keine Startseite: sobald Songs da sind, laufendes Spiel fortsetzen oder neues starten
+  // Keine Startseite: sobald Songs da sind (und klar ist, ob Spotify spielt), fortsetzen oder neu starten
   useEffect(() => {
-    if (autoStarted.current || session || playable === 0) return;
+    // Während eines Syncs (z. B. nach neuer Playlist-Auswahl) warten, bis alle Songs da sind
+    if (autoStarted.current || session || playable === 0 || spotifyPending || me?.syncing) return;
     autoStarted.current = true;
-    void game.start(true);
-  }, [playable, session, game]);
+    void game.start(true, spotifyReady);
+  }, [playable, session, game, spotifyPending, spotifyReady, me?.syncing]);
+
+  // Noch keine Song-Quelle gewählt → zuerst Playlists auswählen
+  if (me && me.sourceCount === 0) return <Navigate to="/playlists" replace />;
 
   // --- Noch kein Spiel: Laden, Sync oder Fehler ---
   if (!session) {
-    let message: ReactNode = 'Lädt …';
-    if (me?.syncing) message = <span className="blink">Deine Liked Songs werden synchronisiert …</span>;
+    const spinner = <span className="spinner" aria-hidden="true" />;
+    let message: ReactNode = <>{spinner}Lädt …</>;
+    if (me?.syncing) message = <>{spinner}Deine Songs werden geladen …</>;
     else if (me && me.stats.songCount === 0)
       message = (
         <>
-          Noch keine Songs geladen.{' '}
+          In deinen ausgewählten Playlists sind keine Songs.{' '}
+          <Link to="/playlists" className="text-button">
+            Playlists ändern
+          </Link>{' '}
+          ·{' '}
           <button type="button" className="text-button" onClick={() => void sync()}>
-            Jetzt synchronisieren
+            Neu synchronisieren
           </button>
         </>
       );
-    else if (game.busy) message = 'Song wird gesucht …';
+    else if (spotifyPending) message = <>{spinner}Verbinde mit Spotify …</>;
+    else if (game.busy) message = <>{spinner}Song wird gesucht …</>;
 
     return (
       <main className="game-container">
@@ -171,7 +188,7 @@ export default function Game() {
           <p className="lead">{message}</p>
           {(userError || game.error) && <p className="error">{userError ?? game.error}</p>}
           {game.error && (
-            <button type="button" className="button button-primary" onClick={() => void game.start()}>
+            <button type="button" className="button button-primary" onClick={() => startGame()}>
               Erneut versuchen
             </button>
           )}
@@ -200,7 +217,7 @@ export default function Game() {
               onClick={() => {
                 game.reset();
                 void refresh();
-                void game.start();
+                startGame();
               }}
             >
               Nochmal spielen

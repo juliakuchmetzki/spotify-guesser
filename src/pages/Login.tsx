@@ -23,7 +23,7 @@ export default function Login() {
         </div>
         <h1>Song Guesser</h1>
         <p className="muted">
-          Erkennst du deine Lieblingssongs nach 0,1 Sekunden? Das Spiel nutzt deine Spotify Liked Songs.
+          Erkennst du deine Lieblingssongs nach 0,1 Sekunden? Gespielt wird mit deinen Spotify-Playlists und Lieblingssongs.
         </p>
         {error && <p className="error">{error}</p>}
         <a className="button button-primary button-wide" href={LOGIN_URL}>

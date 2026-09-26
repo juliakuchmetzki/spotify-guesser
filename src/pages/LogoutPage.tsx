@@ -22,7 +22,7 @@ export default function LogoutPage() {
           {me?.user.email && <p className="account-email">{me.user.email}</p>}
           {me && (
             <p className="account-meta">
-              {me.stats.songCount} Liked Songs · {me.stats.gamesPlayed} Spiele
+              {me.stats.songCount} Songs · {me.stats.gamesPlayed} Spiele
             </p>
           )}
         </div>

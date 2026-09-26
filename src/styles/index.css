@@ -3,36 +3,45 @@
    ========================================================================= */
 
 :root {
-  --color-bg: #0a0e27;
-  --color-surface: #141b3d;
-  --color-surface-2: #1a2345;
-  --color-primary: #10b981;
-  --color-primary-dark: #059669;
-  --color-primary-light: #34d399;
-  --color-accent: #ffd700;
+  /* Farben */
+  --color-primary: #1db954;
+  --color-primary-dark: #1aa34a;
+  --color-primary-light: #1ed760;
+  --color-bg: #0f1419;
+  --color-surface: #181a1f;
+  --color-surface-2: #282828;
   --color-text-primary: #ffffff;
-  --color-text-secondary: #a0aec0;
-  --color-border: rgb(16 185 129 / 0.2);
-  --color-line: #232c52; /* neutrale Trennlinien (Tabellen, Tracks) */
-  --color-error: #ef4444;
-  --color-danger: #c0392b; /* Logout: dunkler als #e74c3c, damit weiße Schrift lesbar bleibt */
-  --color-timeline-rest: #3a4a6a;
-  --color-overlay: rgb(5 7 20 / 0.8);
+  --color-text-secondary: #b3b3b3;
+  --color-text-tertiary: #7f8084;
+  --color-accent: #f7b538;
+  --color-border: #282828;
+  --color-border-strong: #3a3d44;
+  --color-line: #282828;
+  --color-error: #ff5c6c; /* Fehler-TEXT: heller als #e22134, sonst auf Dunkel schwer lesbar */
+  --color-danger: #e22134; /* Flächen (Logout-Button) mit weißer Schrift */
+  --color-timeline-rest: #282828;
+  --color-overlay: rgb(0 0 0 / 0.7);
 
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Schrift: Systemschriften, kein Webfont-Download */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Roboto, sans-serif;
 
+  /* Radien */
   --radius-button: 8px;
   --radius-card: 12px;
-  --radius-modal: 20px;
+  --radius-modal: 16px;
   --radius-pill: 9999px;
 
-  --shadow-card: 0 10px 30px rgb(0 0 0 / 0.3);
-  --shadow-modal: 0 20px 60px rgb(0 0 0 / 0.4);
-  --glow-primary: 0 8px 24px rgb(16 185 129 / 0.3);
-  --shadow-player: 0 10px 40px rgb(0 0 0 / 0.4);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --focus-ring: 0 0 0 3px rgb(16 185 129 / 0.2);
+  /* Schatten */
+  --shadow-sm: 0 2px 8px rgb(0 0 0 / 0.3);
+  --shadow-card: 0 4px 16px rgb(0 0 0 / 0.4);
+  --shadow-modal: 0 8px 32px rgb(0 0 0 / 0.5);
+  --shadow-player: 0 4px 16px rgb(0 0 0 / 0.4);
+  --glow-primary: 0 0 20px rgb(29 185 84 / 0.3);
+  --focus-ring: 0 0 0 3px rgb(29 185 84 / 0.25);
 
+  /* Bewegung */
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-pop: cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
@@ -56,9 +65,49 @@ body {
   background: var(--color-bg);
   color: var(--color-text-primary);
   font-family: var(--font-family);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dezente Scrollbalken */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+/* Lade-Kreisel */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+  vertical-align: -4px;
+  border: 3px solid var(--color-surface-2);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 #root {
@@ -71,7 +120,7 @@ h1 {
   font-size: 32px;
   font-weight: 700;
   line-height: 1.15;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.02em;
 }
 
 h2 {
@@ -137,10 +186,9 @@ button {
   justify-content: space-between;
   gap: 12px;
   padding: 16px 20px;
-  background: linear-gradient(135deg, rgb(20 27 61 / 0.92) 0%, rgb(26 35 69 / 0.92) 100%);
+  background: rgb(24 26 31 / 0.8);
   border-bottom: 1px solid var(--color-border);
   backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
 }
 
 .brand {
@@ -260,6 +308,10 @@ button {
   transform: translateY(-2px);
 }
 
+.button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
 .button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -268,12 +320,16 @@ button {
 .button-primary {
   background: var(--color-primary);
   color: var(--color-bg);
+}
+
+.button-primary:hover:not(:disabled) {
+  background: var(--color-primary-light);
   box-shadow: var(--glow-primary);
 }
 
 .button-secondary {
-  background: transparent;
-  border-color: var(--color-border);
+  background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
   color: var(--color-text-primary);
 }
 
@@ -328,9 +384,15 @@ button {
 
 .card {
   background: var(--color-surface);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-modal);
   padding: 24px;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.card:hover {
+  border-color: var(--color-border-strong);
 }
 
 .card h2 {
@@ -391,9 +453,9 @@ button {
   flex-direction: column;
   gap: 16px;
   padding: 28px 20px;
-  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-2) 100%);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 20px;
+  border-radius: var(--radius-modal);
   box-shadow: var(--shadow-player);
 }
 
@@ -408,7 +470,7 @@ button {
   display: flex;
   gap: 4px;
   padding: 4px;
-  background: rgb(16 185 129 / 0.08);
+  background: rgb(29 185 84 / 0.08);
   border: 1px solid var(--color-border);
   border-radius: 10px;
 }
@@ -430,7 +492,7 @@ button {
 }
 
 .preview-toggle button.active {
-  background: rgb(16 185 129 / 0.25);
+  background: rgb(29 185 84 / 0.25);
   color: var(--color-primary-light);
 }
 
@@ -448,7 +510,7 @@ button {
   height: 16px;
   background: var(--color-timeline-rest);
   overflow: hidden;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.5);
 }
 
 .timeline-unlocked,
@@ -461,11 +523,11 @@ button {
 
 /* Nur während der Wiedergabe sichtbar: der freigeschaltete Bereich vor der Füllung */
 .timeline-unlocked {
-  background: rgb(16 185 129 / 0.3);
+  background: rgb(29 185 84 / 0.3);
 }
 
 .timeline-played {
-  background: var(--color-primary);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
 }
 
 .timeline-played.is-filling {
@@ -488,7 +550,7 @@ button {
   bottom: 0;
   width: 2px;
   transform: translateX(-1px);
-  background: rgb(255 255 255 / 0.35);
+  background: rgb(255 255 255 / 0.25);
   pointer-events: none;
 }
 
@@ -518,16 +580,16 @@ button {
   flex-shrink: 0;
   border: none;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-  color: #fff;
+  background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary-dark));
+  color: var(--color-bg);
   cursor: pointer;
-  box-shadow: 0 8px 24px rgb(16 185 129 / 0.3);
+  box-shadow: var(--shadow-card);
   transition: transform 0.3s var(--ease-spring), box-shadow 0.3s ease, opacity 0.2s ease;
 }
 
 .play-btn:hover:not(:disabled) {
   transform: scale(1.08);
-  box-shadow: 0 12px 36px rgb(16 185 129 / 0.5);
+  box-shadow: 0 0 30px rgb(29 185 84 / 0.4);
 }
 
 .play-btn:active:not(:disabled) {
@@ -622,8 +684,8 @@ button {
 .search-box:focus {
   outline: none;
   border-color: var(--color-primary);
-  background: rgb(16 185 129 / 0.1);
-  box-shadow: 0 0 16px rgb(16 185 129 / 0.2);
+  background: rgb(29 185 84 / 0.1);
+  box-shadow: 0 0 16px rgb(29 185 84 / 0.2);
 }
 
 .search-box::placeholder {
@@ -661,7 +723,7 @@ button {
 
 .autocomplete-item.is-highlighted {
   padding-left: 20px;
-  background: rgb(16 185 129 / 0.15);
+  background: rgb(29 185 84 / 0.15);
 }
 
 .autocomplete-item.empty {
@@ -723,7 +785,7 @@ button {
   background: var(--color-primary);
   color: var(--color-bg);
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgb(16 185 129 / 0.3);
+  box-shadow: 0 8px 16px rgb(29 185 84 / 0.3);
 }
 
 .skip-btn-small.is-giveup {
@@ -750,7 +812,7 @@ button {
 .wrong-guesses li {
   padding: 12px 16px;
   border-radius: var(--radius-card);
-  background: rgb(239 68 68 / 0.08);
+  background: rgb(226 33 52 / 0.08);
   color: var(--color-error);
   animation: slide-in 0.3s var(--ease-out);
 }
@@ -1145,6 +1207,158 @@ button {
 }
 
 /* =========================================================================
+   Playlists
+   ========================================================================= */
+
+.playlists-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notice {
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: rgb(29 185 84 / 0.08);
+  color: var(--color-text-secondary);
+}
+
+.playlist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.playlist-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-2) 100%);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.playlist-card:hover {
+  transform: translateY(-4px);
+  border-color: rgb(29 185 84 / 0.5);
+}
+
+.playlist-card.selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary), 0 8px 24px rgb(29 185 84 / 0.2);
+}
+
+.playlist-cover {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-button);
+  background: linear-gradient(135deg, var(--color-primary-dark), #0b3d1f);
+}
+
+.playlist-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.playlist-cover-icon {
+  font-size: 40px;
+  color: #fff;
+}
+
+.playlist-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-bg);
+  font-weight: 700;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.playlist-card.selected .playlist-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.playlist-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playlist-meta,
+.playlist-status {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.playlist-status {
+  color: var(--color-primary-light);
+}
+
+.playlist-status.error {
+  color: var(--color-error);
+}
+
+.playlists-unavailable {
+  padding: 12px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  color: var(--color-text-secondary);
+}
+
+.playlists-unavailable summary {
+  cursor: pointer;
+}
+
+.playlists-unavailable p {
+  margin: 12px 0 8px;
+}
+
+.playlists-unavailable ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+/* Bleibt beim Scrollen unten sichtbar */
+.playlists-footer {
+  position: sticky;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 12px 12px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: rgb(24 26 31 / 0.92);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-player);
+}
+
+/* =========================================================================
    Statistiken
    ========================================================================= */
 
@@ -1267,7 +1481,7 @@ th {
 
 @media (min-width: 768px) {
   h1 {
-    font-size: 48px;
+    font-size: 40px;
   }
 
   .two-columns {

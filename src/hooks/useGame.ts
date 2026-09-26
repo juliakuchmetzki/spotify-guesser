@@ -28,9 +28,9 @@ export function useGame() {
 
   /** Neues Spiel; mit resume = true wird ein laufendes Spiel fortgesetzt, falls vorhanden. */
   const start = useCallback(
-    (resume = false) =>
+    (resume = false, spotify = false) =>
       run(async () => {
-        const state = (resume ? await gameApi.active() : null) ?? (await gameApi.start());
+        const state = (resume ? await gameApi.active() : null) ?? (await gameApi.start(spotify));
         heardRef.current = 0;
         setSession(state);
         setRoundResult(null);

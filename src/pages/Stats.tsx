@@ -57,7 +57,7 @@ export default function Stats() {
       {me && (
         <div className="card library">
           <div>
-            <strong>{me.stats.songCount} Liked Songs</strong>
+            <strong>{me.stats.songCount} Songs</strong>
             <span className="muted">
               {' '}
               · {me.stats.playableCount} spielbar · letzter Sync: {formatDate(me.user.lastSync)}
