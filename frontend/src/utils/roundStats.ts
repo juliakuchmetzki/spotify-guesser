@@ -1,4 +1,5 @@
 import { SNIPPET_DURATIONS } from '../types';
+import type { DifficultyId } from './difficulty';
 
 /** Lokale Rundenstatistik (nur dieser Browser – das Backend zählt Spiele, nicht Versuche) */
 export interface RoundStats {
@@ -10,14 +11,15 @@ export interface RoundStats {
   dist: number[];
 }
 
-const KEY = 'roundStats';
+/** Je Schwierigkeit getrennt, damit Leicht und Unmöglich vergleichbar bleiben */
+const key = (difficulty: DifficultyId) => `roundStats:${difficulty}`;
 const SLOTS = SNIPPET_DURATIONS.length + 1;
 
 const empty = (): RoundStats => ({ played: 0, won: 0, streak: 0, best: 0, dist: Array(SLOTS).fill(0) });
 
-export function loadStats(): RoundStats {
+export function loadStats(difficulty: DifficultyId): RoundStats {
   try {
-    const parsed = JSON.parse(localStorage.getItem(KEY) ?? 'null') as RoundStats | null;
+    const parsed = JSON.parse(localStorage.getItem(key(difficulty)) ?? 'null') as RoundStats | null;
     if (!parsed || !Array.isArray(parsed.dist) || parsed.dist.length !== SLOTS) return empty();
     return parsed;
   } catch {
@@ -26,8 +28,8 @@ export function loadStats(): RoundStats {
 }
 
 /** attempt = Index des Versuchs, in dem gelöst wurde (0-basiert); null = nicht gelöst */
-export function recordRound(attempt: number | null): RoundStats {
-  const stats = loadStats();
+export function recordRound(difficulty: DifficultyId, attempt: number | null): RoundStats {
+  const stats = loadStats(difficulty);
   const won = attempt != null;
   const dist = [...stats.dist];
   dist[won ? Math.min(attempt, SLOTS - 2) : SLOTS - 1]++;
@@ -40,7 +42,7 @@ export function recordRound(attempt: number | null): RoundStats {
     dist,
   };
   try {
-    localStorage.setItem(KEY, JSON.stringify(next));
+    localStorage.setItem(key(difficulty), JSON.stringify(next));
   } catch {
     /* nicht speicherbar → gilt nur für diese Anzeige */
   }

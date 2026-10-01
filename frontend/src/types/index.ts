@@ -38,11 +38,21 @@ export interface Song {
   imageUrl: string | null;
 }
 
+export interface SlotState {
+  difficulty: number;
+  status: 'pending' | 'correct' | 'failed';
+  points: number;
+}
+
 export interface GameSession {
   id: number;
+  /** Wievielter Song gerade dran ist (erledigte + 1) */
   round: number;
   totalRounds: number;
-  /** Fehlversuche in der aktuellen Runde (unbegrenzt) */
+  /** Aktive Schwierigkeitsstufe (0 = Leicht … 4 = Unmöglich) – jede Stufe hat ihren eigenen Song */
+  difficulty: number;
+  slots: SlotState[];
+  /** Fehlversuche beim aktiven Song (unbegrenzt) */
   wrongGuesses: number;
   score: number;
   correctCount: number;

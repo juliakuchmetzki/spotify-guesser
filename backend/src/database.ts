@@ -29,6 +29,7 @@ export interface SongRow {
   preview_url: string | null;
   preview_status: PreviewStatus;
   deezer_id: number | null;
+  deezer_rank: number | null;
   user_id: number;
   added_at: string | null;
   synced_at: string | null;
@@ -46,6 +47,7 @@ export interface SessionRow {
   correct_count: number;
   status: 'active' | 'completed' | 'abandoned';
   spotify_playback: number;
+  difficulty: number;
   created_at: string;
   finished_at: string | null;
 }
@@ -90,6 +92,19 @@ function ensureColumn(table: string, column: string, definition: string) {
 ensureColumn('users', 'scopes', 'TEXT');
 ensureColumn('users', 'product', 'TEXT');
 ensureColumn('game_sessions', 'spotify_playback', 'INTEGER NOT NULL DEFAULT 0');
+
+ensureColumn('songs', 'deezer_rank', 'INTEGER');
+ensureColumn('game_sessions', 'difficulty', 'INTEGER NOT NULL DEFAULT 0');
+
+export interface SlotRow {
+  session_id: number;
+  difficulty: number;
+  song_id: number;
+  attempts: number;
+  max_snippet: number;
+  status: 'pending' | 'correct' | 'failed';
+  points: number;
+}
 
 export const LIKED_SOURCE = 'liked';
 export const LIKED_SOURCE_NAME = 'Lieblingssongs';

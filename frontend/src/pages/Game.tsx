@@ -10,7 +10,7 @@ import { useCurrentUser } from '../hooks/useSpotify';
 import { useSpotifyPlayback, type SpotifyUnavailableReason } from '../hooks/useSpotifyPlayback';
 import { SNIPPET_DURATIONS, type PlaybackSource, type RoundResult, type SnippetDuration } from '../types';
 import { gameApi, LOGIN_URL } from '../utils/api';
-import { accentStyle, getDifficulty, loadDifficulty, saveDifficulty, type DifficultyId } from '../utils/difficulty';
+import { accentStyle, difficultyAt } from '../utils/difficulty';
 import { loadStats, recordRound, type RoundStats } from '../utils/roundStats';
 
 const SOURCE_KEY = 'previewMode';
@@ -108,23 +108,18 @@ export default function Game() {
   const trackToken = session?.trackToken ?? null;
   const audio = useSongAudio(activeSessionId, trackToken);
 
-  // Schwierigkeit = nur die Akzentfarbe; nur im Frontend, das Backend kennt sie nicht
-  const [difficultyId, setDifficultyId] = useState<DifficultyId>(loadDifficulty);
-  const difficulty = getDifficulty(difficultyId);
+  // Jede Schwierigkeitsstufe ist ein eigener Song (das Backend wählt sie); hier zählt sie für Farbe und Statistik
+  const difficulty = difficultyAt(session?.difficulty ?? 0);
   const lengths = SNIPPET_DURATIONS.slice(0, difficulty.stages);
   const theme = accentStyle(difficulty);
-  const changeDifficulty = (id: DifficultyId) => {
-    setDifficultyId(id);
-    saveDifficulty(id);
-  };
 
-  // Versuch gehört zum Song: neuer trackToken → wieder Versuch 1
-  const [attemptState, setAttemptState] = useState({ token: trackToken, index: 0 });
-  const attempt = Math.min(attemptState.token === trackToken ? attemptState.index : 0, lengths.length - 1);
-  const nextAttempt = () => setAttemptState({ token: trackToken, index: attempt + 1 });
+  // Freigeschaltete Snippet-Stufe gehört zum Song (trackToken): beim Zurückwechseln bleibt sie erhalten
+  const [attemptByToken, setAttemptByToken] = useState<Record<string, number>>({});
+  const attempt = Math.min(trackToken ? (attemptByToken[trackToken] ?? 0) : 0, lengths.length - 1);
+  const nextAttempt = () => trackToken && setAttemptByToken((all) => ({ ...all, [trackToken]: attempt + 1 }));
 
   // Lokale Statistik: jede beendete Runde genau einmal zählen
-  const [stats, setStats] = useState<RoundStats>(loadStats);
+  const [stats, setStats] = useState<RoundStats>(() => loadStats('easy'));
   const recordedResult = useRef<RoundResult | null>(null);
 
   // „Anfang“ (ab 0:00 über Spotify, Premium) ist Standard, sobald verfügbar; sonst „Preview“ (Deezer, 30 s)
@@ -181,8 +176,8 @@ export default function Game() {
   useEffect(() => {
     if (!roundResult || recordedResult.current === roundResult) return;
     recordedResult.current = roundResult;
-    setStats(recordRound(roundResult.outcome === 'correct' ? attempt : null));
-  }, [roundResult, attempt]);
+    setStats(recordRound(difficulty.id, roundResult.outcome === 'correct' ? attempt : null));
+  }, [roundResult, attempt, difficulty.id]);
 
   const playable = me?.stats.playableCount ?? 0;
   const autoStarted = useRef(false);
@@ -272,14 +267,23 @@ export default function Game() {
   const inputDisabled = game.busy || !!roundResult;
   return (
     <main className="game-container" style={theme}>
-      <DifficultySelector value={difficultyId} onChange={changeDifficulty} />
+      <DifficultySelector
+        value={session.difficulty}
+        slots={session.slots}
+        disabled={inputDisabled}
+        onChange={(index) => {
+          // Anderer Song: laufende Wiedergabe stoppen, der neue wird per trackToken geladen
+          audio.stop();
+          spotify.stop();
+          void game.switchDifficulty(index);
+        }}
+      />
 
       <header className="game-heading">
         <h1>Errate den Song</h1>
         <p className="game-meta">
-          <span className="game-number">#{session.round}</span>
           <span>
-            {attempt} von {difficulty.stages} Versuchen
+            {session.correctCount} von {session.totalRounds} gelöst
           </span>
         </p>
       </header>
@@ -313,7 +317,7 @@ export default function Game() {
       </section>
 
       <p className="game-footer">
-        Runde {session.round}/{session.totalRounds} · {session.score} Punkte
+        Song {session.round}/{session.totalRounds} · {session.score} Punkte
       </p>
 
       {roundResult && (

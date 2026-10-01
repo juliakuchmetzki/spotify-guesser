@@ -7,9 +7,9 @@ export interface Difficulty {
   id: DifficultyId;
   label: string;
   color: string;
-  /** Schrift auf gefüllten Flächen; auf Gelb wäre Weiß kaum lesbar */
+  /** Schrift auf gefüllten Flächen; auf Gelb/Orange wäre Weiß kaum lesbar */
   contrast: string;
-  /** Anzahl freischaltbarer Snippet-Stufen (= Versuche); bei allen Graden gleich – nur die Farbe unterscheidet sich */
+  /** Anzahl freischaltbarer Snippet-Stufen (= Versuche); bei allen Graden gleich */
   stages: number;
 }
 
@@ -23,27 +23,9 @@ export const DIFFICULTIES: readonly Difficulty[] = [
 
 export const GUESS_COLOR = '#00AA00';
 
-const KEY = 'difficulty';
-
-export function getDifficulty(id: DifficultyId): Difficulty {
-  return DIFFICULTIES.find((d) => d.id === id) ?? DIFFICULTIES[0];
-}
-
-export function loadDifficulty(): DifficultyId {
-  try {
-    const value = localStorage.getItem(KEY);
-    return DIFFICULTIES.some((d) => d.id === value) ? (value as DifficultyId) : 'easy';
-  } catch {
-    return 'easy';
-  }
-}
-
-export function saveDifficulty(id: DifficultyId) {
-  try {
-    localStorage.setItem(KEY, id);
-  } catch {
-    /* ohne Speicher gilt die Wahl nur für diese Sitzung */
-  }
+/** Index = Schwierigkeitsstufe des Backends (0 = Leicht … 4 = Unmöglich) */
+export function difficultyAt(index: number): Difficulty {
+  return DIFFICULTIES[index] ?? DIFFICULTIES[0];
 }
 
 /** Setzt die Akzentfarbe für alles darunter (siehe --accent in index.css) */

@@ -4,14 +4,17 @@ import { errorMessage, gameApi } from '../utils/api';
 
 export function useGame() {
   const [session, setSession] = useState<GameSession | null>(null);
-  // Ergebnis der gerade beendeten Runde (für das Modal) + Zustand danach, der erst beim "Weiter" übernommen wird
+  // Ergebnis des gerade beendeten Songs (für das Modal) + Zustand danach, der erst beim "Weiter" übernommen wird
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
   const [nextSession, setNextSession] = useState<GameSession | null>(null);
-  const [wrongGuesses, setWrongGuesses] = useState<string[]>([]);
+  // Falsche Tipps je Schwierigkeitsstufe: beim Zurückwechseln bleiben sie sichtbar
+  const [wrongBySlot, setWrongBySlot] = useState<Record<number, string[]>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pendingPlay = useRef<Promise<void>>(Promise.resolve());
-  const heardRef = useRef(0); // längstes gehörtes Snippet der aktuellen Runde
+  const heardRef = useRef<Record<number, number>>({}); // längstes gehörtes Snippet je Stufe
+
+  const wrongGuesses = session ? (wrongBySlot[session.difficulty] ?? []) : [];
 
   const run = useCallback(async <T,>(action: () => Promise<T>): Promise<T | undefined> => {
     setBusy(true);
@@ -26,16 +29,20 @@ export function useGame() {
     }
   }, []);
 
+  const clearRound = () => {
+    heardRef.current = {};
+    setRoundResult(null);
+    setNextSession(null);
+    setWrongBySlot({});
+  };
+
   /** Neues Spiel; mit resume = true wird ein laufendes Spiel fortgesetzt, falls vorhanden. */
   const start = useCallback(
     (resume = false, spotify = false) =>
       run(async () => {
         const state = (resume ? await gameApi.active() : null) ?? (await gameApi.start(spotify));
-        heardRef.current = 0;
         setSession(state);
-        setRoundResult(null);
-        setNextSession(null);
-        setWrongGuesses([]);
+        clearRound();
       }),
     [run],
   );
@@ -44,7 +51,8 @@ export function useGame() {
   const recordPlay = useCallback(
     (duration: number) => {
       if (!session) return;
-      heardRef.current = Math.max(heardRef.current, duration);
+      const slot = session.difficulty;
+      heardRef.current[slot] = Math.max(heardRef.current[slot] ?? 0, duration);
       pendingPlay.current = gameApi
         .play(session.id, duration)
         .then(() => undefined)
@@ -53,10 +61,25 @@ export function useGame() {
     [session],
   );
 
+  /** Wechselt zu einer anderen Schwierigkeitsstufe – das ist ein anderer Song. */
+  const switchDifficulty = useCallback(
+    (difficulty: number) =>
+      run(async () => {
+        if (!session || difficulty === session.difficulty) return;
+        await pendingPlay.current;
+        setSession(await gameApi.switchDifficulty(session.id, difficulty));
+      }),
+    [run, session],
+  );
+
+  const addWrong = (slot: number, text: string) =>
+    setWrongBySlot((all) => ({ ...all, [slot]: [...(all[slot] ?? []), text] }));
+
   const guess = useCallback(
     (text: string, songId?: number) =>
       run(async () => {
         if (!session) return;
+        const slot = session.difficulty;
         // Snippet-Länge muss vor dem Tipp gespeichert sein, sonst stimmt der Bonus nicht
         await pendingPlay.current;
         const res = await gameApi.guess(session.id, text, songId);
@@ -65,12 +88,12 @@ export function useGame() {
             outcome: res.correct ? 'correct' : 'failed',
             points: res.points,
             reveal: res.reveal,
-            heard: heardRef.current,
+            heard: heardRef.current[slot] ?? 0,
           });
           setNextSession(res.state);
-          if (!res.correct) setWrongGuesses((g) => [...g, text]);
+          if (!res.correct) addWrong(slot, text);
         } else {
-          setWrongGuesses((g) => [...g, text]);
+          addWrong(slot, text);
           setSession(res.state);
         }
       }),
@@ -83,25 +106,21 @@ export function useGame() {
         if (!session) return;
         const res = await gameApi.giveUp(session.id);
         if (!res.reveal) return;
-        setRoundResult({ outcome: 'gaveup', points: 0, reveal: res.reveal, heard: heardRef.current });
+        setRoundResult({ outcome: 'gaveup', points: 0, reveal: res.reveal, heard: heardRef.current[session.difficulty] ?? 0 });
         setNextSession(res.state);
       }),
     [run, session],
   );
 
   const continueGame = useCallback(() => {
-    heardRef.current = 0;
     if (nextSession) setSession(nextSession);
     setNextSession(null);
     setRoundResult(null);
-    setWrongGuesses([]);
   }, [nextSession]);
 
   const reset = useCallback(() => {
     setSession(null);
-    setRoundResult(null);
-    setNextSession(null);
-    setWrongGuesses([]);
+    clearRound();
     setError(null);
   }, []);
 
@@ -114,6 +133,7 @@ export function useGame() {
     error,
     start,
     recordPlay,
+    switchDifficulty,
     guess,
     giveUp,
     continueGame,

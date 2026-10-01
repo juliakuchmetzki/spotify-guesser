@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS songs (
   preview_url    TEXT,                    -- nur gesetzt, wenn Spotify selbst eine Preview liefert
   preview_status TEXT NOT NULL DEFAULT 'unknown', -- unknown | spotify | deezer | none
   deezer_id      INTEGER,
+  deezer_rank    INTEGER,                 -- Deezer-Beliebtheit (höher = bekannter); 0 = nicht gefunden, NULL = noch nicht geprüft
   user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   added_at       TEXT,
   synced_at      TEXT,
@@ -79,3 +80,15 @@ CREATE TABLE IF NOT EXISTS song_sources (
   PRIMARY KEY (song_id, source_id)
 );
 CREATE INDEX IF NOT EXISTS idx_song_sources_source ON song_sources(source_id);
+
+-- Pro Spiel fünf Songs, einer je Schwierigkeitsstufe (0 = Leicht … 4 = Unmöglich); der Spieler wechselt frei zwischen ihnen
+CREATE TABLE IF NOT EXISTS game_slots (
+  session_id  INTEGER NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+  difficulty  INTEGER NOT NULL,
+  song_id     INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+  attempts    INTEGER NOT NULL DEFAULT 0, -- falsche Versuche bei diesem Song
+  max_snippet REAL NOT NULL DEFAULT 0,    -- längstes gehörtes Snippet (s)
+  status      TEXT NOT NULL DEFAULT 'pending', -- pending | correct | failed
+  points      INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (session_id, difficulty)
+);

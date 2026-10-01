@@ -1,35 +1,58 @@
 import { Router, type Request, type Response } from 'express';
-import { all, get, getUser, IN_SELECTED_SOURCES, run, type SessionRow, type SongRow } from '../database';
-import { resolvePreview } from '../preview';
+import {
+  all,
+  get,
+  getUser,
+  IN_SELECTED_SOURCES,
+  run,
+  transaction,
+  type SessionRow,
+  type SlotRow,
+  type SongRow,
+} from '../database';
+import { ensureRank, resolvePreview } from '../preview';
 import { getValidAccessToken, SpotifyError, startPlayback, streamingStatus } from '../spotify';
 import { cleanTitle, normalize, splitArtists } from '../text';
 
-export const TOTAL_ROUNDS = 5;
-export const MAX_SKIPS = 3;
+/** Ein Song pro Schwierigkeitsstufe: 0 = Leicht … 4 = Unmöglich */
+export const DIFFICULTY_COUNT = 5;
+export const TOTAL_ROUNDS = DIFFICULTY_COUNT;
 export const SNIPPET_DURATIONS = [0.1, 0.5, 1, 2, 4, 8];
 const BASE_POINTS = 10;
 const PENALTY_PER_WRONG_GUESS = 2;
 const QUICK_BONUS = 5;
 const QUICK_BONUS_MAX_SNIPPET = 0.5;
-const PICK_ATTEMPTS = 15;
+/** So viele Songs werden gesichtet (Rank prüfen), bevor sie in fünf Stufen eingeteilt werden */
+const SAMPLE_SIZE = 30;
+const RANK_LOOKUPS_AT_ONCE = 5;
 
 const router = Router();
 
 /** Aufgelöste Preview-URL je Session, damit der Audio-Proxy nicht jedes Mal Deezer fragt. */
 const previewCache = new Map<number, { songId: number; url: string }>();
 
+const slotsOf = (sessionId: number) =>
+  all<SlotRow>('SELECT * FROM game_slots WHERE session_id = ? ORDER BY difficulty', sessionId);
+
+const slotOf = (sessionId: number, difficulty: number) =>
+  get<SlotRow>('SELECT * FROM game_slots WHERE session_id = ? AND difficulty = ?', sessionId, difficulty);
+
 function publicState(session: SessionRow) {
+  const slots = slotsOf(session.id);
+  const active = slots.find((s) => s.difficulty === session.difficulty);
   return {
     id: session.id,
-    round: session.round,
+    // Wie vielter Song gerade dran ist (erledigte + 1), nie mehr als die Gesamtzahl
+    round: Math.min(slots.filter((s) => s.status !== 'pending').length + 1, TOTAL_ROUNDS),
     totalRounds: TOTAL_ROUNDS,
-    wrongGuesses: session.attempts, // unbegrenzt – kostet nur Punkte
-    skipsLeft: MAX_SKIPS - session.skips_used,
+    difficulty: session.difficulty,
+    slots: slots.map((s) => ({ difficulty: s.difficulty, status: s.status, points: s.points })),
+    wrongGuesses: active?.attempts ?? 0, // unbegrenzt – kostet nur Punkte
     score: session.score,
     correctCount: session.correct_count,
     status: session.status,
-    // Ändert sich bei jedem neuen Song, ohne die Song-ID preiszugeben
-    trackToken: session.status === 'active' ? `${session.round}-${session.skips_used}` : null,
+    // Ändert sich bei jedem Wechsel der Stufe, ohne die Song-ID preiszugeben
+    trackToken: session.status === 'active' ? `${session.id}-${session.difficulty}` : null,
   };
 }
 
@@ -86,35 +109,77 @@ function currentSong(session: SessionRow): SongRow | undefined {
 
 const reload = (id: number) => get<SessionRow>('SELECT * FROM game_sessions WHERE id = ?', id)!;
 
-/**
- * Zufälliger, in dieser Session noch nicht gespielter Song.
- * Mit Spotify-Wiedergabe kommt jeder Liked Song infrage; sonst nur Songs mit abspielbarer Deezer-Preview.
- */
-async function pickSong(sessionId: number, userId: number, spotifyPlayback: boolean): Promise<SongRow | null> {
-  for (let i = 0; i < PICK_ATTEMPTS; i++) {
-    const song = get<SongRow>(
-      `SELECT * FROM songs
-       WHERE user_id = ? AND ${IN_SELECTED_SOURCES} ${spotifyPlayback ? '' : "AND preview_status != 'none'"}
-         AND id NOT IN (SELECT song_id FROM game_rounds WHERE session_id = ? AND song_id IS NOT NULL)
-       ORDER BY RANDOM() LIMIT 1`,
-      userId,
-      sessionId,
-    );
-    if (!song) return null;
-    if (spotifyPlayback) return song; // Preview wird nur noch fürs Ergebnis-Fenster/Rückfall bei Bedarf geladen
-    const url = await resolvePreview(song);
-    if (url) {
-      previewCache.set(sessionId, { songId: song.id, url });
-      return song;
-    }
+const shuffle = <T>(items: T[]): T[] => {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
   }
-  return null;
+  return copy;
+};
+
+/**
+ * Wählt fünf Songs, einen je Schwierigkeitsstufe: Eine Stichprobe wird nach Deezer-Beliebtheit sortiert
+ * und in fünf gleich große Gruppen geteilt (bekannteste = Leicht, unbekannteste = Unmöglich).
+ * Mit Spotify-Wiedergabe kommt jeder Song infrage; sonst nur Songs mit abspielbarer Deezer-Preview.
+ */
+async function pickSongSet(sessionId: number, userId: number, spotifyPlayback: boolean): Promise<SongRow[] | null> {
+  const pool = all<SongRow>(
+    `SELECT * FROM songs WHERE user_id = ? AND ${IN_SELECTED_SOURCES} ${spotifyPlayback ? '' : "AND preview_status != 'none'"}`,
+    userId,
+  );
+  if (pool.length < DIFFICULTY_COUNT) return null;
+
+  // Schon bewertete Songs zuerst (kosten nichts), unbewertete nur so viele wie nötig
+  const rated = shuffle(pool.filter((s) => s.deezer_rank != null));
+  const unrated = shuffle(pool.filter((s) => s.deezer_rank == null));
+  const sample = [...rated, ...unrated.slice(0, Math.max(SAMPLE_SIZE - rated.length, 0))].slice(0, SAMPLE_SIZE);
+  const toRate = sample.filter((s) => s.deezer_rank == null);
+  for (let i = 0; i < toRate.length; i += RANK_LOOKUPS_AT_ONCE) {
+    await Promise.all(
+      toRate.slice(i, i + RANK_LOOKUPS_AT_ONCE).map(async (song) => {
+        song.deezer_rank = await ensureRank(song);
+      }),
+    );
+  }
+
+  // Ohne Rank (nicht gefunden / Fehler) → ans Ende, damit sie höchstens die schwersten Stufen füllen
+  const known = sample.filter((s) => (s.deezer_rank ?? 0) > 0).sort((a, b) => b.deezer_rank! - a.deezer_rank!);
+  const ordered = [...known, ...shuffle(sample.filter((s) => (s.deezer_rank ?? 0) <= 0))];
+
+  const picked: SongRow[] = [];
+  for (let level = 0; level < DIFFICULTY_COUNT; level++) {
+    const from = Math.floor((level * ordered.length) / DIFFICULTY_COUNT);
+    const to = Math.floor(((level + 1) * ordered.length) / DIFFICULTY_COUNT);
+    let chosen: SongRow | null = null;
+    for (const song of shuffle(ordered.slice(from, to))) {
+      if (spotifyPlayback) {
+        chosen = song;
+        break;
+      }
+      const url = await resolvePreview(song);
+      if (url) {
+        chosen = song;
+        if (level === 0) previewCache.set(sessionId, { songId: song.id, url });
+        break;
+      }
+    }
+    if (!chosen) return null;
+    picked.push(chosen);
+  }
+  return picked;
 }
 
-function recordRound(session: SessionRow, result: 'correct' | 'failed' | 'skipped', points: number) {
+/** Macht die Stufe zur aktiven (und ihren Song zum aktuellen Song der Session). */
+function activate(sessionId: number, slot: SlotRow) {
+  run('UPDATE game_sessions SET difficulty = ?, current_song_id = ? WHERE id = ?', slot.difficulty, slot.song_id, sessionId);
+}
+
+function recordRound(session: SessionRow, slot: SlotRow, result: 'correct' | 'failed', points: number) {
+  const round = slotsOf(session.id).filter((s) => s.status !== 'pending').length + 1;
   run(
     'INSERT INTO game_rounds (session_id, song_id, round, attempts, max_snippet, points, result) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    session.id, session.current_song_id, session.round, session.attempts, session.max_snippet, points, result,
+    session.id, slot.song_id, round, slot.attempts, slot.max_snippet, points, result,
   );
 }
 
@@ -126,32 +191,37 @@ function complete(sessionId: number) {
   previewCache.delete(sessionId);
 }
 
-/** Nächste Runde starten oder das Spiel beenden. */
-async function advance(session: SessionRow): Promise<SessionRow> {
-  const next =
-    session.round < TOTAL_ROUNDS ? await pickSong(session.id, session.user_id, !!session.spotify_playback) : null;
-  if (!next) {
-    complete(session.id);
-  } else {
+/** Schließt die aktive Stufe ab und springt zur leichtesten noch offenen – oder beendet das Spiel. */
+function finishSlot(session: SessionRow, slot: SlotRow, status: 'correct' | 'failed', points: number): SessionRow {
+  transaction(() => {
+    recordRound(session, slot, status, points);
     run(
-      'UPDATE game_sessions SET round = round + 1, current_song_id = ?, attempts = 0, max_snippet = 0 WHERE id = ?',
-      next.id,
-      session.id,
+      'UPDATE game_slots SET status = ?, points = ? WHERE session_id = ? AND difficulty = ?',
+      status, points, session.id, slot.difficulty,
     );
-  }
+    if (status === 'correct') {
+      run('UPDATE game_sessions SET score = score + ?, correct_count = correct_count + 1 WHERE id = ?', points, session.id);
+    }
+    const next = slotsOf(session.id).find((s) => s.status === 'pending');
+    if (next) activate(session.id, next);
+    else complete(session.id);
+  });
   return reload(session.id);
 }
 
 // GET /api/games/active → laufendes Spiel des Users (zum Fortsetzen), sonst state: null
 router.get('/active', (req, res) => {
+  // Spiele aus der Zeit vor den Schwierigkeitsstufen (ohne Slots) lassen sich nicht fortsetzen
   const session = get<SessionRow>(
-    "SELECT * FROM game_sessions WHERE user_id = ? AND status = 'active' AND current_song_id IS NOT NULL ORDER BY id DESC LIMIT 1",
+    `SELECT * FROM game_sessions WHERE user_id = ? AND status = 'active' AND current_song_id IS NOT NULL
+       AND EXISTS (SELECT 1 FROM game_slots WHERE session_id = game_sessions.id)
+     ORDER BY id DESC LIMIT 1`,
     req.userId,
   );
   res.json({ state: session ? publicState(session) : null });
 });
 
-// POST /api/games/start { spotify?: boolean } → neue Session mit zufälligem ersten Song
+// POST /api/games/start { spotify?: boolean } → neue Session mit fünf Songs (je Schwierigkeitsstufe einer)
 router.post('/start', async (req, res) => {
   run("UPDATE game_sessions SET status = 'abandoned' WHERE user_id = ? AND status = 'active'", req.userId);
 
@@ -162,14 +232,19 @@ router.post('/start', async (req, res) => {
     req.userId,
     spotifyPlayback ? 1 : 0,
   );
-  const song = await pickSong(sessionId, req.userId, spotifyPlayback);
-  if (!song) {
+  const songs = await pickSongSet(sessionId, req.userId, spotifyPlayback);
+  if (!songs) {
     run('DELETE FROM game_sessions WHERE id = ?', sessionId);
     return res.status(409).json({
-      error: 'Keine abspielbaren Songs in deinen ausgewählten Playlists. Wähle weitere Playlists oder synchronisiere erneut.',
+      error: `Für ein Spiel braucht es mindestens ${DIFFICULTY_COUNT} abspielbare Songs in deinen ausgewählten Playlists. Wähle weitere Playlists oder synchronisiere erneut.`,
     });
   }
-  run('UPDATE game_sessions SET current_song_id = ? WHERE id = ?', song.id, sessionId);
+  transaction(() => {
+    songs.forEach((song, difficulty) =>
+      run('INSERT INTO game_slots (session_id, difficulty, song_id) VALUES (?, ?, ?)', sessionId, difficulty, song.id),
+    );
+    activate(sessionId, slotOf(sessionId, 0)!);
+  });
   res.status(201).json({ state: publicState(reload(sessionId)) });
 });
 
@@ -180,7 +255,10 @@ router.post('/play', (req, res) => {
   const duration = Number(req.body.duration);
   if (!SNIPPET_DURATIONS.includes(duration)) return res.status(400).json({ error: 'Ungültige Snippet-Länge' });
 
-  run('UPDATE game_sessions SET max_snippet = MAX(max_snippet, ?) WHERE id = ?', duration, session.id);
+  run(
+    'UPDATE game_slots SET max_snippet = MAX(max_snippet, ?) WHERE session_id = ? AND difficulty = ?',
+    duration, session.id, session.difficulty,
+  );
   res.json({ state: publicState(reload(session.id)) });
 });
 
@@ -189,7 +267,8 @@ router.post('/guess', async (req, res) => {
   const session = loadSession(req, res);
   if (!session) return;
   const song = currentSong(session);
-  if (!song) return res.status(409).json({ error: 'Kein aktiver Song' });
+  const slot = slotOf(session.id, session.difficulty);
+  if (!song || !slot) return res.status(409).json({ error: 'Kein aktiver Song' });
 
   const guess = typeof req.body.guess === 'string' ? req.body.guess.trim() : '';
   const guessedSongId = req.body.song_id != null ? Number(req.body.song_id) : null;
@@ -209,55 +288,43 @@ router.post('/guess', async (req, res) => {
   }
 
   if (correct) {
-    const points = calculatePoints(session.attempts, session.max_snippet);
-    run('UPDATE game_sessions SET score = score + ?, correct_count = correct_count + 1 WHERE id = ?', points, session.id);
-    recordRound(session, 'correct', points);
-    const state = await advance(reload(session.id));
+    const points = calculatePoints(slot.attempts, slot.max_snippet);
+    const state = finishSlot(session, slot, 'correct', points);
     return res.json({ correct: true, points, roundOver: true, reveal: reveal(song), state: publicState(state) });
   }
 
   // Versuche sind unbegrenzt; jeder Fehlversuch senkt nur die möglichen Punkte
-  run('UPDATE game_sessions SET attempts = attempts + 1 WHERE id = ?', session.id);
+  run('UPDATE game_slots SET attempts = attempts + 1 WHERE session_id = ? AND difficulty = ?', session.id, session.difficulty);
   res.json({ correct: false, points: 0, roundOver: false, state: publicState(reload(session.id)) });
 });
 
-// POST /api/games/giveup { session_id } → Runde ohne Punkte beenden und Lösung zeigen
+// POST /api/games/giveup { session_id } → Song ohne Punkte beenden und Lösung zeigen
 router.post('/giveup', async (req, res) => {
   const session = loadSession(req, res);
   if (!session) return;
   const song = currentSong(session);
-  if (!song) return res.status(409).json({ error: 'Kein aktiver Song' });
+  const slot = slotOf(session.id, session.difficulty);
+  if (!song || !slot) return res.status(409).json({ error: 'Kein aktiver Song' });
 
-  recordRound(session, 'failed', 0);
-  const state = await advance(session);
+  const state = finishSlot(session, slot, 'failed', 0);
   res.json({ correct: false, points: 0, roundOver: true, reveal: reveal(song), state: publicState(state) });
 });
 
-// POST /api/games/skip { session_id } → ersetzt den Song der aktuellen Runde (max. MAX_SKIPS pro Spiel)
-router.post('/skip', async (req, res) => {
+// POST /api/games/switch { session_id, difficulty } → zu einer noch offenen Stufe wechseln (Fortschritt der anderen bleibt)
+router.post('/switch', (req, res) => {
   const session = loadSession(req, res);
   if (!session) return;
-  if (session.skips_used >= MAX_SKIPS) return res.status(400).json({ error: 'Keine Skips mehr übrig' });
-  const song = currentSong(session);
-  if (!song) return res.status(409).json({ error: 'Kein aktiver Song' });
+  const difficulty = Number(req.body.difficulty);
+  const slot = Number.isInteger(difficulty) ? slotOf(session.id, difficulty) : undefined;
+  if (!slot) return res.status(400).json({ error: 'Ungültige Schwierigkeit' });
+  if (slot.status !== 'pending') return res.status(409).json({ error: 'Dieser Song ist schon erledigt' });
 
-  recordRound(session, 'skipped', 0);
-  const next = await pickSong(session.id, session.user_id, !!session.spotify_playback);
-  if (next) {
-    run(
-      'UPDATE game_sessions SET skips_used = skips_used + 1, current_song_id = ?, attempts = 0, max_snippet = 0 WHERE id = ?',
-      next.id,
-      session.id,
-    );
-  } else {
-    run('UPDATE game_sessions SET skips_used = skips_used + 1 WHERE id = ?', session.id);
-    complete(session.id);
-  }
-  res.json({ reveal: reveal(song), state: publicState(reload(session.id)) });
+  activate(session.id, slot);
+  res.json({ state: publicState(reload(session.id)) });
 });
 
 // POST /api/games/playback { session_id, spotify } → Wiedergabeart des laufenden Spiels ändern.
-// Ohne Spotify kommen ab dem nächsten Song nur noch Songs mit Deezer-Preview dran.
+// Die fünf Songs stehen schon fest; fehlt einem die Preview, meldet /audio das und der Spieler gibt auf oder wechselt.
 router.post('/playback', (req, res) => {
   const session = loadSession(req, res);
   if (!session) return;
@@ -305,7 +372,7 @@ router.get('/:id/audio', async (req, res) => {
 
   // Signierte Deezer-URLs können ablaufen → einmal neu auflösen
   const upstream = (await fetchAudio(false)) ?? (await fetchAudio(true));
-  if (!upstream) return res.status(502).json({ error: 'Preview konnte nicht geladen werden – bitte Song überspringen' });
+  if (!upstream) return res.status(502).json({ error: 'Preview konnte nicht geladen werden – bitte wechsle die Stufe oder gib den Song auf' });
 
   res.set('Content-Type', upstream.headers.get('content-type') ?? 'audio/mpeg');
   res.set('Cache-Control', 'no-store');

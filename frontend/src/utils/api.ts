@@ -94,6 +94,9 @@ export const gameApi = {
     api
       .post<GuessResponse>('/games/guess', { session_id: sessionId, guess, song_id: songId })
       .then((r) => r.data),
+  /** Zu einer noch offenen Schwierigkeitsstufe (= anderer Song) wechseln */
+  switchDifficulty: (sessionId: number, difficulty: number) =>
+    api.post<{ state: GameSession }>('/games/switch', { session_id: sessionId, difficulty }).then((r) => r.data.state),
   setPlayback: (sessionId: number, spotify: boolean) => api.post('/games/playback', { session_id: sessionId, spotify }),
   spotifyPlay: (sessionId: number, deviceId: string) =>
     api.post('/games/spotify-play', { session_id: sessionId, device_id: deviceId }),

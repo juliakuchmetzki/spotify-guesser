@@ -15,6 +15,7 @@ interface DeezerTrack {
   title: string;
   title_short?: string;
   preview?: string;
+  rank?: number;
   artist?: { name: string };
 }
 
@@ -78,13 +79,37 @@ export async function resolvePreview(song: SongRow): Promise<string | null> {
     if (!track?.preview) track = await searchDeezer(song);
 
     if (track?.preview) {
-      run("UPDATE songs SET deezer_id = ?, preview_status = 'deezer' WHERE id = ?", track.id, song.id);
+      run(
+        "UPDATE songs SET deezer_id = ?, preview_status = 'deezer', deezer_rank = COALESCE(?, deezer_rank) WHERE id = ?",
+        track.id,
+        track.rank ?? null,
+        song.id,
+      );
       return track.preview;
     }
     run("UPDATE songs SET preview_status = 'none' WHERE id = ?", song.id);
     return null;
   } catch (err) {
     console.warn(`[preview] Song ${song.id} (${song.title}) konnte nicht aufgelöst werden:`, (err as Error).message);
+    return null;
+  }
+}
+
+/**
+ * Deezer-Beliebtheit des Songs (höher = bekannter) – Grundlage der Schwierigkeitsstufen.
+ * 0 = bei Deezer nicht gefunden; null = vorübergehender Fehler, später erneut versuchen.
+ */
+export async function ensureRank(song: SongRow): Promise<number | null> {
+  if (song.deezer_rank != null) return song.deezer_rank;
+  try {
+    let track = song.deezer_id ? await deezer<DeezerTrack>(`/track/${song.deezer_id}`) : null;
+    if (!track && song.isrc) track = await deezer<DeezerTrack>(`/track/isrc:${encodeURIComponent(song.isrc)}`);
+    if (!track) track = await searchDeezer(song);
+    const rank = track?.rank ?? 0;
+    run('UPDATE songs SET deezer_rank = ? WHERE id = ?', rank, song.id);
+    return rank;
+  } catch (err) {
+    console.warn(`[rank] Song ${song.id} (${song.title}) ohne Rank:`, (err as Error).message);
     return null;
   }
 }

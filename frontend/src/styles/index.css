@@ -7,8 +7,8 @@
   --color-primary: #1db954;
   --color-primary-dark: #1aa34a;
   --color-primary-light: #1ed760;
-  --color-bg: #0f1419;
-  --color-surface: #181a1f;
+  --color-bg: #0f0f0f;
+  --color-surface: #1a1a1a;
   --color-surface-2: #282828;
   --color-text-primary: #ffffff;
   --color-text-secondary: #b3b3b3;
@@ -19,7 +19,7 @@
   --color-line: #282828;
   --color-error: #ff5c6c; /* Fehler-TEXT: heller als #e22134, sonst auf Dunkel schwer lesbar */
   --color-danger: #e22134; /* Flächen (Logout-Button) mit weißer Schrift */
-  --color-timeline-rest: #0a0c0f;
+  --color-timeline-rest: #2a2a2a;
   --color-overlay: rgb(0 0 0 / 0.7);
 
   /* Schrift: Systemschriften, kein Webfont-Download */
@@ -38,6 +38,7 @@
   --shadow-player: 0 4px 16px rgb(0 0 0 / 0.4);
   --glow-primary: 0 0 20px rgb(29 185 84 / 0.3);
   --focus-ring: 0 0 0 3px rgb(29 185 84 / 0.25);
+  --color-muted: #999999;
 
   /* Bewegung */
   --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -363,13 +364,13 @@ button {
 .game-container {
   flex: 1;
   width: 100%;
-  max-width: 800px;
+  max-width: 640px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 40px 20px 56px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 28px;
+  gap: 40px;
 }
 
 .page {
@@ -465,47 +466,56 @@ button {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .difficulty-pill {
-  min-height: 48px;
-  padding: 0 18px;
-  border: 2px solid var(--pill);
-  border-radius: var(--radius-pill);
+  padding: 8px 16px;
+  border: 2px solid color-mix(in srgb, var(--pill) 55%, transparent);
+  border-radius: 24px;
   background: transparent;
-  color: var(--pill);
+  color: var(--color-text-primary);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  line-height: 1.3;
   cursor: pointer;
-  transition: background 0.3s ease, color 0.3s ease, filter 0.2s ease, transform 0.2s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
 }
 
 .difficulty-pill:hover {
-  filter: brightness(1.15);
+  border-color: var(--pill);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--pill) 40%, transparent);
 }
 
 .difficulty-pill.is-active {
-  background: var(--pill);
-  color: var(--pill-contrast);
+  border-color: var(--pill);
+}
+
+.difficulty-pill.is-done {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.difficulty-pill.is-done:hover {
+  border-color: color-mix(in srgb, var(--pill) 55%, transparent);
+  box-shadow: none;
 }
 
 .game-heading h1 {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   line-height: 1.2;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.2px;
 }
 
 .game-meta {
   display: flex;
   gap: 12px;
   margin-top: 4px;
-  font-size: 13px;
-  color: var(--color-text-tertiary);
+  font-size: 14px;
+  font-weight: 400;
+  color: #888888;
   font-variant-numeric: tabular-nums;
 }
 
@@ -522,51 +532,52 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
-  padding: 32px 24px 20px;
+  gap: 25px;
+  width: 100%;
+  padding: 40px 20px 24px;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-modal);
-  box-shadow: var(--shadow-player);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
 }
 
 .song-icon {
-  width: 96px;
-  height: 96px;
+  width: 80px;
+  height: 80px;
+  margin-bottom: 5px; /* + 25px Gap = 30px bis zum Play-Button */
   fill: none;
-  stroke: rgb(255 255 255 / 0.85);
+  stroke: #888888;
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: stroke 0.3s ease, transform 0.3s ease;
+  opacity: 0.7;
+  transition: stroke 0.3s ease, opacity 0.3s ease;
 }
 
 .song-icon.is-playing {
   stroke: var(--accent);
-  transform: scale(1.05);
+  opacity: 0.9;
 }
 
 /* Play/Pause: beide Icons im selben Grid-Feld → exakt zentriert, Wechsel per Überblendung */
 .play-btn {
   display: grid;
   place-items: center;
-  width: 80px;
-  height: 80px;
+  width: 70px;
+  height: 70px;
   padding: 0;
   flex-shrink: 0;
   border: none;
   border-radius: 50%;
   background: var(--accent);
-  color: var(--accent-contrast);
+  color: #ffffff;
   cursor: pointer;
-  box-shadow: var(--shadow-card);
-  transition: transform 0.3s var(--ease-spring), box-shadow 0.3s ease, filter 0.2s ease, opacity 0.2s ease;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: transform 0.3s var(--ease-spring), box-shadow 0.3s ease, background 0.3s ease, opacity 0.2s ease;
 }
 
 .play-btn:hover:not(:disabled) {
-  filter: brightness(1.12);
-  transform: scale(1.06);
-  box-shadow: 0 0 30px var(--accent-glow);
+  transform: scale(1.05);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 .play-btn:active:not(:disabled) {
@@ -581,8 +592,8 @@ button {
 .play-btn svg {
   grid-area: 1 / 1;
   display: block;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   fill: currentColor;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -591,6 +602,20 @@ button {
 .play-btn.is-playing .icon-play {
   opacity: 0;
   transform: scale(0.6);
+}
+
+.play-btn.is-playing {
+  animation: play-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes play-pulse {
+  0%,
+  100% {
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 6px 32px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
 }
 
 .play-btn.is-playing .icon-pause {
@@ -603,6 +628,7 @@ button {
   align-items: center;
   gap: 12px;
   width: 100%;
+  padding: 0 2px;
 }
 
 /* Timeline: eine einzige schmale Leiste */
@@ -613,8 +639,7 @@ button {
 
 .timeline-track {
   position: relative;
-  height: 6px;
-  overflow: hidden;
+  height: 5px;
   border-radius: 3px;
   background: var(--color-timeline-rest);
 }
@@ -630,11 +655,25 @@ button {
 }
 
 .timeline-unlocked {
-  background: var(--accent-soft);
+  background: #444444;
 }
 
 .timeline-played {
   background: var(--accent);
+}
+
+/* Slider-Thumb am Ende des gespielten Bereichs (ragt über die Leiste, daher kein overflow:hidden am Track) */
+.timeline-played::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
+  transform: translateY(-50%);
 }
 
 .timeline-played:not(.is-filling) {
@@ -659,18 +698,19 @@ button {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 2px;
-  transform: translateX(-1px);
-  background: var(--color-bg);
+  width: 1px;
+  transform: translateX(-0.5px);
+  background: var(--color-surface);
+  opacity: 0.6;
   pointer-events: none;
 }
 
 .current-time {
-  min-width: 48px;
-  font-size: 15px;
-  font-weight: 700;
+  min-width: 40px;
+  font-size: 14px;
+  font-weight: 600;
   text-align: right;
-  color: var(--accent);
+  color: var(--color-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -685,35 +725,39 @@ button {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px 12px;
   width: 100%;
-  margin-top: -8px;
+  margin-top: -10px; /* 25px Gap → 15px bis zu den Buttons */
 }
 
 .player-footer .player-status {
-  margin: 0;
+  margin: 0 0 0 auto;
+  font-size: 12px;
+  font-weight: 400;
+  color: #666666;
+  opacity: 0.6;
 }
 
 .preview-toggle {
   display: flex;
-  gap: 4px;
+  gap: 12px;
 }
 
 .preview-toggle button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-button);
-  background: var(--color-bg);
-  color: var(--color-text-secondary);
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 1px solid #555555;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
-  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  transition: border-color 0.3s ease, color 0.3s ease;
 }
 
 .preview-toggle button svg {
@@ -727,13 +771,13 @@ button {
 }
 
 .preview-toggle button:hover {
-  color: var(--color-text-primary);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .preview-toggle button.active {
-  border-color: var(--color-text-secondary);
-  background: var(--color-surface-2);
-  color: var(--color-text-primary);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .source-note {
@@ -759,13 +803,13 @@ button {
 .guess-area {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 50px;
 }
 
 .search-skip-container {
   display: flex;
   align-items: stretch;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
 }
 
@@ -792,16 +836,15 @@ button {
 
 .search-box {
   width: 100%;
-  min-height: 52px;
-  padding: 14px 18px 14px 44px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-card);
-  background: rgb(255 255 255 / 0.06);
+  min-height: 48px;
+  padding: 12px 16px 12px 44px;
+  border: 1px solid #444444;
+  border-radius: 8px;
+  background: #2a2a2a;
   color: var(--color-text-primary);
   font: inherit;
   font-size: 15px;
-  backdrop-filter: blur(10px);
-  transition: border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .search-box:focus {
@@ -811,7 +854,7 @@ button {
 }
 
 .search-box::placeholder {
-  color: var(--color-text-secondary);
+  color: #666666;
 }
 
 .autocomplete-list {
@@ -892,26 +935,24 @@ button {
 .action-btn {
   --btn: var(--accent);
   --btn-contrast: var(--accent-contrast);
-  flex-shrink: 0;
-  min-width: 140px;
-  min-height: 52px;
-  padding: 0 20px;
+  flex: 0 0 25%;
+  min-width: 120px;
+  min-height: 48px;
+  padding: 0 16px;
   border: none;
-  border-radius: var(--radius-card);
+  border-radius: 8px;
   background: var(--btn);
   color: var(--btn-contrast);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
   white-space: nowrap;
   cursor: pointer;
   transition: background 0.3s ease, color 0.3s ease, filter 0.2s ease, transform 0.2s ease;
 }
 
 .action-btn.is-guess {
-  --btn: #31c93a;
+  --btn: #00aa00;
   --btn-contrast: #ffffff;
 }
 
@@ -937,13 +978,29 @@ button {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  list-style: none;
+  counter-reset: guess;
+}
+
+.wrong-guesses li::before {
+  content: counter(guess);
+  position: absolute;
+  left: -28px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: #444444;
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
 }
 
 .wrong-guesses li {
+  position: relative;
   padding: 12px 16px;
-  border-radius: var(--radius-card);
-  background: rgb(226 33 52 / 0.08);
+  border-radius: 8px;
+  background: rgb(255 85 85 / 0.08);
   color: var(--color-error);
+  counter-increment: guess;
   animation: slide-in 0.3s var(--ease-out);
 }
 
@@ -1711,25 +1768,8 @@ th {
     gap: 28px;
   }
 
-  .audio-player {
-    padding: 40px 32px;
-  }
-
   .brand span {
     display: inline;
-  }
-
-  .game-container {
-    padding: 48px 24px;
-  }
-
-  .difficulty-pills {
-    gap: 16px;
-  }
-
-  .song-icon {
-    width: 120px;
-    height: 120px;
   }
 
   .logout-card {
@@ -1758,10 +1798,6 @@ th {
     grid-template-columns: 1fr 1fr;
   }
 
-  .game-heading h1 {
-    font-size: 32px;
-  }
-
   .modal-overlay {
     align-items: center;
     padding: 16px;
@@ -1773,11 +1809,33 @@ th {
 }
 
 /* Schmale Handys: Pills und Buttons enger, alles zentriert */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
+  .game-container {
+    width: 90%;
+    padding: 28px 0 40px;
+    gap: 32px;
+  }
+
+  .difficulty-pills {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
   .difficulty-pill {
-    padding: 0 12px;
+    padding: 8px 10px;
     font-size: 12px;
   }
+
+  .guess-area {
+    gap: 36px;
+  }
+
+  .wrong-guesses li::before {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
 
   .game-heading {
     text-align: center;

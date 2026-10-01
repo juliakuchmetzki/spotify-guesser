@@ -1,28 +1,38 @@
 import type { CSSProperties } from 'react';
-import { DIFFICULTIES, type DifficultyId } from '../utils/difficulty';
+import type { SlotState } from '../types';
+import { DIFFICULTIES } from '../utils/difficulty';
 
 interface Props {
-  value: DifficultyId;
-  onChange: (id: DifficultyId) => void;
+  /** Aktive Stufe (Index) */
+  value: number;
+  slots: readonly SlotState[];
+  disabled?: boolean;
+  onChange: (index: number) => void;
 }
 
-/** Fünf Pills: aktive gefüllt, übrige als Outline in ihrer eigenen Farbe */
-export default function DifficultySelector({ value, onChange }: Props) {
+/** Fünf Pills, je eine pro Song: Rahmen in der Stufenfarbe; aktive kräftig, erledigte abgeblendet mit Häkchen/Kreuz */
+export default function DifficultySelector({ value, slots, disabled, onChange }: Props) {
   return (
     <div className="difficulty-pills" role="radiogroup" aria-label="Schwierigkeit">
-      {DIFFICULTIES.map((d) => (
-        <button
-          key={d.id}
-          type="button"
-          role="radio"
-          aria-checked={value === d.id}
-          className={`difficulty-pill ${value === d.id ? 'is-active' : ''}`}
-          style={{ '--pill': d.color, '--pill-contrast': d.contrast } as CSSProperties}
-          onClick={() => onChange(d.id)}
-        >
-          {d.label}
-        </button>
-      ))}
+      {DIFFICULTIES.map((d, i) => {
+        const status = slots.find((s) => s.difficulty === i)?.status ?? 'pending';
+        const done = status !== 'pending';
+        return (
+          <button
+            key={d.id}
+            type="button"
+            role="radio"
+            aria-checked={value === i}
+            className={`difficulty-pill ${value === i ? 'is-active' : ''} ${done ? 'is-done' : ''}`}
+            style={{ '--pill': d.color } as CSSProperties}
+            disabled={disabled || done}
+            onClick={() => onChange(i)}
+          >
+            {d.label}
+            {done && <span aria-hidden="true"> {status === 'correct' ? '✓' : '✕'}</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }
