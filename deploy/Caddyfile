@@ -1,0 +1,6 @@
+# /etc/caddy/Caddyfile – HTTPS mit automatischem Let's-Encrypt-Zertifikat
+# DEIN-NAME durch deinen DuckDNS-Namen (oder deine eigene Domain) ersetzen.
+DEIN-NAME.duckdns.org {
+	encode gzip
+	reverse_proxy 127.0.0.1:5000
+}
