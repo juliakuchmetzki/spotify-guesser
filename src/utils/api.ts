@@ -94,6 +94,7 @@ export const gameApi = {
     api
       .post<GuessResponse>('/games/guess', { session_id: sessionId, guess, song_id: songId })
       .then((r) => r.data),
+  setPlayback: (sessionId: number, spotify: boolean) => api.post('/games/playback', { session_id: sessionId, spotify }),
   spotifyPlay: (sessionId: number, deviceId: string) =>
     api.post('/games/spotify-play', { session_id: sessionId, device_id: deviceId }),
   giveUp: (sessionId: number) =>

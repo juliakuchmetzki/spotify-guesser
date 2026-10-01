@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { errorMessage, gameApi, userApi } from '../utils/api';
+import axios from 'axios';
+import { gameApi, userApi } from '../utils/api';
 import type { PlaybackMode } from './useSongAudio';
 
 const SDK_URL = 'https://sdk.scdn.co/spotify-player.js';
-const START_TIMEOUT_MS = 6000;
+const START_TIMEOUT_MS = 5000;
+const DEVICE_RETRY_MS = 1000;
 const CONNECT_TIMEOUT_MS = 10000;
 
 export type SpotifyUnavailableReason = 'unsupported' | 'premium' | 'auth' | 'error';
@@ -45,7 +47,7 @@ export function useSpotifyPlayback(enabled: boolean, sessionId: number | null, t
 
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [reason, setReason] = useState<SpotifyUnavailableReason | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false); // Start angefordert, Spotify spielt noch nicht
   const [mode, setMode] = useState<PlaybackMode>(null);
   const [clipLength, setClipLength] = useState(0);
   const [playId, setPlayId] = useState(0);
@@ -115,6 +117,7 @@ export function useSpotifyPlayback(enabled: boolean, sessionId: number | null, t
     requestRef.current++;
     window.clearTimeout(pauseTimerRef.current);
     waitingRef.current = null;
+    setStarting(false);
     void playerRef.current?.pause().catch(() => undefined);
     setMode(null);
   }, []);
@@ -125,14 +128,15 @@ export function useSpotifyPlayback(enabled: boolean, sessionId: number | null, t
     stop();
   }, [trackToken, stop]);
 
+  /** true = Spotify spielt; false = hat nicht geklappt (Aufrufer fällt dann auf die Preview zurück) */
   const playClip = useCallback(
-    async (length: number) => {
+    async (length: number): Promise<boolean> => {
       const player = playerRef.current;
       const deviceId = deviceRef.current;
-      if (!player || !deviceId || sessionId == null || !trackToken) return;
+      if (!player || !deviceId || sessionId == null || !trackToken) return false;
       stop();
       const request = ++requestRef.current;
-      setError(null);
+      setStarting(true);
       void player.activateElement(); // nötig für Autoplay in manchen Browsern, muss im Klick passieren
 
       // Erst reagieren, wenn Spotify wirklich spielt – dann läuft der Timer für die Clip-Länge
@@ -150,20 +154,32 @@ export function useSpotifyPlayback(enabled: boolean, sessionId: number | null, t
           await player.seek(0);
           await player.resume();
         } else {
-          await gameApi.spotifyPlay(sessionId, deviceId); // startet ab 0:00
+          try {
+            await gameApi.spotifyPlay(sessionId, deviceId); // startet ab 0:00
+          } catch (err) {
+            // Direkt nach "ready" kennt Spotify das Browser-Gerät oft noch nicht (409 = Gerät nicht gefunden)
+            if (!axios.isAxiosError(err) || err.response?.status !== 409) throw err;
+            await new Promise((r) => setTimeout(r, DEVICE_RETRY_MS));
+            if (request !== requestRef.current) return false;
+            await gameApi.spotifyPlay(sessionId, deviceId);
+          }
           loadedTrackRef.current = trackToken;
         }
         await started;
       } catch (err) {
         if (request === requestRef.current) {
+          console.warn('[spotify] Wiedergabe nicht gestartet – Rückfall auf Preview:', (err as Error).message);
           waitingRef.current = null;
-          setError(errorMessage(err));
+          loadedTrackRef.current = null;
+          setStarting(false);
           setMode(null);
+          void player.pause().catch(() => undefined); // falls Spotify doch noch verspätet loslegt
         }
-        return;
+        return false;
       }
-      if (request !== requestRef.current) return;
+      if (request !== requestRef.current) return false;
 
+      setStarting(false);
       setClipLength(length);
       setPlayId((id) => id + 1);
       setMode('clip');
@@ -171,9 +187,10 @@ export function useSpotifyPlayback(enabled: boolean, sessionId: number | null, t
         void player.pause().catch(() => undefined);
         setMode(null);
       }, length * 1000);
+      return true;
     },
     [sessionId, trackToken, stop],
   );
 
-  return { status, reason, error, mode, clipLength, playId, playClip, stop };
+  return { status, reason, starting, mode, clipLength, playId, playClip, stop };
 }

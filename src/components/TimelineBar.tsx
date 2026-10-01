@@ -12,8 +12,8 @@ interface Props {
 }
 
 /**
- * Dicker Balken mit Strichen bei jeder Stufe. Grün = freigeschaltete Zeit (proportional).
- * Während der Wiedergabe füllt sich das Grün von links bis zur freigeschalteten Marke (reine CSS-Animation).
+ * Zwei Ebenen: oben dünn und grau die bisher freigeschaltete Zeit (mit Stufen-Strichen),
+ * darunter kräftig in der Akzentfarbe die gerade gespielte Zeit (reine CSS-Animation, linear).
  */
 export default function TimelineBar({ lengths, currentIndex, isPlaying, clipDuration, playId }: Props) {
   const max = lengths[lengths.length - 1];
@@ -30,16 +30,20 @@ export default function TimelineBar({ lengths, currentIndex, isPlaying, clipDura
       aria-valuetext={`${formatDuration(current)} von ${formatDuration(max)} freigeschaltet`}
       style={{ '--unlocked': `${unlocked}%` } as CSSProperties}
     >
-      {/* Freigeschalteter Bereich; nur während der Wiedergabe sichtbar, wenn die Füllung noch nicht dort ist */}
-      <div className="timeline-unlocked" />
-      <div
-        key={isPlaying ? `play-${playId}` : 'idle'}
-        className={`timeline-played ${isPlaying ? 'is-filling' : ''}`}
-        style={isPlaying ? ({ '--clip-duration': `${clipDuration}s` } as CSSProperties) : undefined}
-      />
-      {lengths.slice(0, -1).map((length) => (
-        <span key={length} className="timeline-marker" style={{ left: `${(length / max) * 100}%` }} title={formatDuration(length)} />
-      ))}
+      <div className="timeline-used">
+        <div className="timeline-used-fill" />
+        {lengths.slice(0, -1).map((length) => (
+          <span key={length} className="timeline-marker" style={{ left: `${(length / max) * 100}%` }} />
+        ))}
+      </div>
+      <div className="timeline-track">
+        <div className="timeline-unlocked" />
+        <div
+          key={isPlaying ? `play-${playId}` : 'idle'}
+          className={`timeline-played ${isPlaying ? 'is-filling' : ''}`}
+          style={isPlaying ? ({ '--clip-duration': `${clipDuration}s` } as CSSProperties) : undefined}
+        />
+      </div>
     </div>
   );
 }

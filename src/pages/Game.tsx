@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import AudioPlayer, { type ClipPlayer } from '../components/AudioPlayer';
+import DifficultySelector from '../components/DifficultySelector';
 import ResultModal from '../components/ResultModal';
 import SearchBar from '../components/SearchBar';
 import { useGame } from '../hooks/useGame';
 import { useSongAudio } from '../hooks/useSongAudio';
 import { useCurrentUser } from '../hooks/useSpotify';
 import { useSpotifyPlayback, type SpotifyUnavailableReason } from '../hooks/useSpotifyPlayback';
-import { SNIPPET_DURATIONS, type PlaybackSource, type SnippetDuration } from '../types';
-import { LOGIN_URL } from '../utils/api';
+import { SNIPPET_DURATIONS, type PlaybackSource, type RoundResult, type SnippetDuration } from '../types';
+import { gameApi, LOGIN_URL } from '../utils/api';
+import { accentStyle, getDifficulty, loadDifficulty, saveDifficulty, type DifficultyId } from '../utils/difficulty';
+import { loadStats, recordRound, type RoundStats } from '../utils/roundStats';
 
-const LAST_INDEX = SNIPPET_DURATIONS.length - 1;
 const SOURCE_KEY = 'previewMode';
 
 /** Gespeicherte Wahl; null = noch nie gewählt → Spotify, wenn verfügbar */
@@ -54,52 +56,45 @@ function unavailableNote(reason: SpotifyUnavailableReason | 'scope'): ReactNode 
 
 interface RoundProps {
   audio: ClipPlayer;
+  lengths: readonly SnippetDuration[];
+  attempt: number;
   disabled: boolean;
   source: PlaybackSource;
   sourceNote?: ReactNode;
   onSourceChange: (source: PlaybackSource) => void;
   onPlay: (duration: SnippetDuration) => void;
+  onSkip: () => void;
   onGuess: (text: string, songId?: number) => void;
   onGiveUp: () => void;
 }
 
 /**
- * Eine Runde = ein Song. Wird per key={trackToken} neu gemountet,
- * dadurch beginnt jeder Song wieder bei 0,1 s und mit leerem Suchfeld.
+ * Eine Runde = ein Song. Wird per key={trackToken} neu gemountet (leeres Suchfeld).
+ * Der Versuch (= freigeschaltete Stufe) liegt in Game, weil auch Kopfzeile und Ergebnis ihn brauchen.
  */
-function Round({ audio, disabled, source, sourceNote, onSourceChange, onPlay, onGuess, onGiveUp }: RoundProps) {
-  const [snippetIndex, setSnippetIndex] = useState(0);
-  const isMaxLength = snippetIndex === LAST_INDEX;
+function Round({ audio, lengths, attempt, disabled, source, sourceNote, onSourceChange, onPlay, onSkip, onGuess, onGiveUp }: RoundProps) {
+  const isLastAttempt = attempt === lengths.length - 1;
 
-  // Skip springt zur nächsten Stufe; ab 8 s wird daraus „Aufgeben“
+  // Überspringen schaltet die nächste Stufe frei; auf der letzten wird daraus „Aufgeben“
   const handleSkipOrGiveUp = () => {
     audio.stop();
-    if (isMaxLength) onGiveUp();
-    else setSnippetIndex((i) => i + 1);
+    if (isLastAttempt) onGiveUp();
+    else onSkip();
   };
 
   return (
     <>
       <AudioPlayer
         audio={audio}
-        lengths={SNIPPET_DURATIONS}
-        currentIndex={snippetIndex}
+        lengths={lengths}
+        currentIndex={attempt}
         disabled={disabled}
         source={source}
         sourceNote={sourceNote}
         onSourceChange={onSourceChange}
         onPlay={onPlay}
       />
-      <SearchBar disabled={disabled} onGuess={onGuess}>
-        <button
-          type="button"
-          className={`skip-btn-small ${isMaxLength ? 'is-giveup' : ''}`}
-          disabled={disabled}
-          onClick={handleSkipOrGiveUp}
-        >
-          {isMaxLength ? 'Aufgeben' : 'Skip'}
-        </button>
-      </SearchBar>
+      <SearchBar disabled={disabled} onGuess={onGuess} isLastAttempt={isLastAttempt} onSkip={handleSkipOrGiveUp} />
     </>
   );
 }
@@ -113,25 +108,56 @@ export default function Game() {
   const trackToken = session?.trackToken ?? null;
   const audio = useSongAudio(activeSessionId, trackToken);
 
+  // Schwierigkeit = Farbe + Anzahl Versuche (Snippet-Stufen); nur im Frontend, das Backend kennt sie nicht
+  const [difficultyId, setDifficultyId] = useState<DifficultyId>(loadDifficulty);
+  const difficulty = getDifficulty(difficultyId);
+  const lengths = SNIPPET_DURATIONS.slice(0, difficulty.stages);
+  const theme = accentStyle(difficulty);
+  const changeDifficulty = (id: DifficultyId) => {
+    setDifficultyId(id);
+    saveDifficulty(id);
+  };
+
+  // Versuch gehört zum Song: neuer trackToken → wieder Versuch 1
+  const [attemptState, setAttemptState] = useState({ token: trackToken, index: 0 });
+  const attempt = Math.min(attemptState.token === trackToken ? attemptState.index : 0, lengths.length - 1);
+  const nextAttempt = () => setAttemptState({ token: trackToken, index: attempt + 1 });
+
+  // Lokale Statistik: jede beendete Runde genau einmal zählen
+  const [stats, setStats] = useState<RoundStats>(loadStats);
+  const recordedResult = useRef<RoundResult | null>(null);
+
   // „Anfang“ (ab 0:00 über Spotify, Premium) ist Standard, sobald verfügbar; sonst „Preview“ (Deezer, 30 s)
   const [storedSource, setStoredSource] = useState<PlaybackSource | null>(loadSource);
+  // Hat Spotify beim Abspielen nicht reagiert, läuft der Rest der Sitzung über die Preview (wird nicht gespeichert)
+  const [spotifyFallback, setSpotifyFallback] = useState(false);
   const canStream = me?.playback.canStream ?? false;
-  const source: PlaybackSource = storedSource ?? (canStream ? 'start' : 'preview');
+  const source: PlaybackSource = spotifyFallback ? 'preview' : (storedSource ?? (canStream ? 'start' : 'preview'));
   // Player schon vor dem Spielstart verbinden, damit feststeht, ob Spotify wirklich geht
   const spotify = useSpotifyPlayback(source === 'start' && canStream, activeSessionId, trackToken);
   const spotifyReady = source === 'start' && canStream && spotify.status === 'ready';
   const spotifyPending = source === 'start' && canStream && (spotify.status === 'idle' || spotify.status === 'loading');
   const startGame = (resume = false) => void game.start(resume, spotifyReady);
 
+  // Spotify zuerst; startet es nicht (kein Gerät, Timeout …), läuft derselbe Clip sofort als Preview
+  const spotifyWithFallback: ClipPlayer = {
+    ...spotify,
+    playClip: async (length: number) => {
+      if (await spotify.playClip(length)) return;
+      setSpotifyFallback(true);
+      if (activeSessionId != null) void gameApi.setPlayback(activeSessionId, false).catch(() => undefined);
+      await audio.playClip(length);
+    },
+  };
+
   let clipPlayer: ClipPlayer = audio;
   let sourceNote: ReactNode;
-  if (source === 'start') {
+  if (spotifyFallback && storedSource !== 'preview') {
+    sourceNote = 'Spotify hat nicht reagiert – es läuft die Preview.';
+  } else if (source === 'start') {
     if (me && !canStream) sourceNote = unavailableNote(me.playback.reason ?? 'scope');
     else if (spotify.status === 'error') sourceNote = unavailableNote(spotify.reason ?? 'error');
-    else {
-      clipPlayer = spotify;
-      if (spotify.error) sourceNote = <span className="error">{spotify.error}</span>;
-    }
+    else clipPlayer = spotifyWithFallback;
   }
 
   const changeSource = (next: PlaybackSource) => {
@@ -139,6 +165,11 @@ export default function Game() {
     spotify.stop();
     setStoredSource(next);
     saveSource(next);
+    // Erneut „Anfang“ gewählt → Spotify noch einmal versuchen (auch fürs laufende Spiel)
+    setSpotifyFallback(false);
+    if (activeSessionId != null && canStream) {
+      void gameApi.setPlayback(activeSessionId, next === 'start' && spotify.status === 'ready').catch(() => undefined);
+    }
   };
 
   // Nach der Runde übernimmt die Preview im Ergebnis-Fenster → Spotify anhalten
@@ -146,6 +177,12 @@ export default function Game() {
   useEffect(() => {
     if (roundResult) spotifyStop();
   }, [roundResult, spotifyStop]);
+
+  useEffect(() => {
+    if (!roundResult || recordedResult.current === roundResult) return;
+    recordedResult.current = roundResult;
+    setStats(recordRound(roundResult.outcome === 'correct' ? attempt : null));
+  }, [roundResult, attempt]);
 
   const playable = me?.stats.playableCount ?? 0;
   const autoStarted = useRef(false);
@@ -183,7 +220,7 @@ export default function Game() {
     else if (game.busy) message = <>{spinner}Song wird gesucht …</>;
 
     return (
-      <main className="game-container">
+      <main className="game-container" style={theme}>
         <section className="hero">
           <p className="lead">{message}</p>
           {(userError || game.error) && <p className="error">{userError ?? game.error}</p>}
@@ -200,7 +237,7 @@ export default function Game() {
   // --- Endbildschirm ---
   if (session.status !== 'active' && !roundResult) {
     return (
-      <main className="game-container">
+      <main className="game-container" style={theme}>
         <section className="hero">
           <p className="eyebrow">Spiel beendet</p>
           <p className="final-score">{session.score}</p>
@@ -234,17 +271,32 @@ export default function Game() {
   // --- Laufendes Spiel ---
   const inputDisabled = game.busy || !!roundResult;
   return (
-    <main className="game-container">
+    <main className="game-container" style={theme}>
+      <DifficultySelector value={difficultyId} onChange={changeDifficulty} />
+
+      <header className="game-heading">
+        <h1>Errate den Song</h1>
+        <p className="game-meta">
+          <span className="game-number">#{session.round}</span>
+          <span>
+            {attempt} von {difficulty.stages} Versuchen
+          </span>
+        </p>
+      </header>
+
       <section className="guess-area">
         {session.trackToken && (
           <Round
             key={session.trackToken}
             audio={clipPlayer}
+            lengths={lengths}
+            attempt={attempt}
             disabled={inputDisabled}
             source={source}
             sourceNote={sourceNote}
             onSourceChange={changeSource}
             onPlay={game.recordPlay}
+            onSkip={nextAttempt}
             onGuess={(text, songId) => void game.guess(text, songId)}
             onGiveUp={() => void game.giveUp()}
           />
@@ -270,6 +322,11 @@ export default function Game() {
           audio={audio}
           gameOver={game.nextSession?.status !== 'active'}
           onNext={game.continueGame}
+          round={session.round}
+          totalRounds={session.totalRounds}
+          difficulty={difficulty}
+          attempt={attempt}
+          stats={stats}
         />
       )}
     </main>

@@ -1,15 +1,16 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useSongSearch } from '../hooks/useSpotify';
 import type { Song } from '../types';
 
 interface Props {
   disabled: boolean;
   onGuess: (text: string, songId?: number) => void;
-  /** Button rechts neben dem Suchfeld (Skip/Aufgeben) */
-  children?: ReactNode;
+  /** Rechter Button ohne Vorschläge: Überspringen bzw. auf der letzten Stufe Aufgeben */
+  isLastAttempt: boolean;
+  onSkip: () => void;
 }
 
-export default function SearchBar({ disabled, onGuess, children }: Props) {
+export default function SearchBar({ disabled, onGuess, isLastAttempt, onSkip }: Props) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(-1);
@@ -32,7 +33,7 @@ export default function SearchBar({ disabled, onGuess, children }: Props) {
 
   const choose = (song: Song) => submit(`${song.title} – ${song.artist}`, song.id);
 
-  // Kein Raten-Button: Auswahl eines Treffers rät sofort; Enter ohne Auswahl rät den Freitext
+  // Enter: markierter Treffer, sonst Freitext
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (open && highlighted >= 0 && results[highlighted]) choose(results[highlighted]);
@@ -53,6 +54,8 @@ export default function SearchBar({ disabled, onGuess, children }: Props) {
   };
 
   const showList = open && query.trim().length > 0;
+  // Mit Vorschlägen wird aus „Überspringen“ ein grüner „Raten“-Button (markierter oder erster Treffer)
+  const canGuess = showList && results.length > 0;
 
   return (
     <form className="search-skip-container" onSubmit={handleSubmit}>
@@ -66,7 +69,7 @@ export default function SearchBar({ disabled, onGuess, children }: Props) {
           type="text"
           value={query}
           className="search-box"
-          placeholder="Songtitel oder Artist suchen …"
+          placeholder="Song suchen …"
           disabled={disabled}
           autoComplete="off"
           role="combobox"
@@ -107,7 +110,16 @@ export default function SearchBar({ disabled, onGuess, children }: Props) {
           </ul>
         )}
       </div>
-      {children}
+      <button
+        type="button"
+        className={`action-btn ${canGuess ? 'is-guess' : isLastAttempt ? 'is-giveup' : ''}`}
+        disabled={disabled}
+        // Fokus im Suchfeld lassen, sonst schließt die Vorschlagsliste vor dem Klick
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => (canGuess ? choose(results[Math.max(highlighted, 0)]) : onSkip())}
+      >
+        {canGuess ? 'Raten' : isLastAttempt ? 'Aufgeben' : 'Überspringen'}
+      </button>
     </form>
   );
 }
