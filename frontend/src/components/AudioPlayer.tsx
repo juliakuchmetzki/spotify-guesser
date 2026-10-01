@@ -28,9 +28,22 @@ interface Props {
   onPlay: (duration: SnippetDuration) => void;
 }
 
+const SOURCE_ICONS: Record<PlaybackSource, ReactNode> = {
+  preview: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+    </svg>
+  ),
+  start: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 5v14M19 5 9 12l10 7z" />
+    </svg>
+  ),
+};
+
 const SOURCES: { value: PlaybackSource; label: string; title: string }[] = [
-  { value: 'preview', label: '🔊 Preview', title: '30-Sekunden-Vorschau (meist aus der Songmitte)' },
-  { value: 'start', label: '📻 Anfang', title: 'Echter Song-Anfang ab 0:00 über Spotify (Premium)' },
+  { value: 'preview', label: 'Preview', title: '30-Sekunden-Vorschau (meist aus der Songmitte)' },
+  { value: 'start', label: 'Anfang', title: 'Echter Song-Anfang ab 0:00 über Spotify (Premium)' },
 ];
 
 /** Noten-Symbol, Play/Pause, Timeline mit aktueller Länge. Überspringen sitzt neben dem Suchfeld (siehe Game.tsx). */
@@ -97,22 +110,24 @@ export default function AudioPlayer({
           {formatDuration(length)}
         </span>
       </div>
-      {status && <p className="player-status">{status}</p>}
-
-      <div className="preview-toggle" role="radiogroup" aria-label="Wiedergabe">
-        {SOURCES.map((s) => (
-          <button
-            key={s.value}
-            type="button"
-            role="radio"
-            aria-checked={source === s.value}
-            className={source === s.value ? 'active' : ''}
-            title={s.title}
-            onClick={() => onSourceChange(s.value)}
-          >
-            {s.label}
-          </button>
-        ))}
+      <div className="player-footer">
+        <div className="preview-toggle" role="radiogroup" aria-label="Wiedergabe">
+          {SOURCES.map((s) => (
+            <button
+              key={s.value}
+              type="button"
+              role="radio"
+              aria-checked={source === s.value}
+              className={source === s.value ? 'active' : ''}
+              title={s.title}
+              onClick={() => onSourceChange(s.value)}
+            >
+              {SOURCE_ICONS[s.value]}
+              {s.label}
+            </button>
+          ))}
+        </div>
+        {status && <p className="player-status">{status}</p>}
       </div>
       {sourceNote && <p className="source-note">{sourceNote}</p>}
     </div>

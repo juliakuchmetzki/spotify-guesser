@@ -18,7 +18,6 @@ export default function DifficultySelector({ value, onChange }: Props) {
           aria-checked={value === d.id}
           className={`difficulty-pill ${value === d.id ? 'is-active' : ''}`}
           style={{ '--pill': d.color, '--pill-contrast': d.contrast } as CSSProperties}
-          title={`${d.stages} ${d.stages === 1 ? 'Versuch' : 'Versuche'}`}
           onClick={() => onChange(d.id)}
         >
           {d.label}

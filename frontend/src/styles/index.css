@@ -19,7 +19,7 @@
   --color-line: #282828;
   --color-error: #ff5c6c; /* Fehler-TEXT: heller als #e22134, sonst auf Dunkel schwer lesbar */
   --color-danger: #e22134; /* Flächen (Logout-Button) mit weißer Schrift */
-  --color-timeline-rest: #282828;
+  --color-timeline-rest: #0a0c0f;
   --color-overlay: rgb(0 0 0 / 0.7);
 
   /* Schrift: Systemschriften, kein Webfont-Download */
@@ -522,8 +522,8 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  padding: 28px 20px;
+  gap: 24px;
+  padding: 32px 24px 20px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-modal);
@@ -605,32 +605,20 @@ button {
   width: 100%;
 }
 
-/* Timeline: oben dünn grau = freigeschaltet, darunter kräftig = gerade gespielt */
+/* Timeline: eine einzige schmale Leiste */
 .timeline-bar {
   position: relative;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
-.timeline-used,
 .timeline-track {
   position: relative;
+  height: 6px;
   overflow: hidden;
-  border-radius: var(--radius-pill);
+  border-radius: 3px;
   background: var(--color-timeline-rest);
 }
 
-.timeline-used {
-  height: 4px;
-}
-
-.timeline-track {
-  height: 10px;
-}
-
-.timeline-used-fill,
 .timeline-unlocked,
 .timeline-played {
   position: absolute;
@@ -639,10 +627,6 @@ button {
   min-width: 3px; /* 0,1 s wären sonst kaum sichtbar */
   border-radius: inherit;
   transition: width 0.3s ease;
-}
-
-.timeline-used-fill {
-  background: #8a8d93;
 }
 
 .timeline-unlocked {
@@ -696,27 +680,50 @@ button {
   color: var(--color-text-secondary);
 }
 
-/* Umschalter Preview / Anfang */
+/* Preview / Anfang: kompakt, unter der Leiste, linksbündig */
+.player-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  width: 100%;
+  margin-top: -8px;
+}
+
+.player-footer .player-status {
+  margin: 0;
+}
+
 .preview-toggle {
   display: flex;
   gap: 4px;
-  padding: 4px;
-  background: rgb(255 255 255 / 0.04);
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
 }
 
 .preview-toggle button {
-  min-height: 40px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 7px;
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-button);
+  background: var(--color-bg);
   color: var(--color-text-secondary);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.3s ease, color 0.3s ease;
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.preview-toggle button svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .preview-toggle button:hover {
@@ -724,7 +731,8 @@ button {
 }
 
 .preview-toggle button.active {
-  background: var(--accent-soft);
+  border-color: var(--color-text-secondary);
+  background: var(--color-surface-2);
   color: var(--color-text-primary);
 }
 

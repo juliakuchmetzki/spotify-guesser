@@ -9,19 +9,19 @@ export interface Difficulty {
   color: string;
   /** Schrift auf gefüllten Flächen; auf Gelb wäre Weiß kaum lesbar */
   contrast: string;
-  /** Anzahl freischaltbarer Snippet-Stufen (= Versuche) */
+  /** Anzahl freischaltbarer Snippet-Stufen (= Versuche); bei allen Graden gleich – nur die Farbe unterscheidet sich */
   stages: number;
 }
 
 export const DIFFICULTIES: readonly Difficulty[] = [
-  { id: 'easy', label: 'Leicht', color: '#31C93A', contrast: '#ffffff', stages: SNIPPET_DURATIONS.length },
-  { id: 'medium', label: 'Mittel', color: '#FFD700', contrast: '#0f1419', stages: 5 },
-  { id: 'hard', label: 'Schwer', color: '#FF8C00', contrast: '#ffffff', stages: 4 },
-  { id: 'expert', label: 'Experte', color: '#FF3333', contrast: '#ffffff', stages: 3 },
-  { id: 'impossible', label: 'Unmöglich', color: '#9D4EDD', contrast: '#ffffff', stages: 2 },
+  { id: 'easy', label: 'Leicht', color: '#00AA00', contrast: '#ffffff', stages: SNIPPET_DURATIONS.length },
+  { id: 'medium', label: 'Mittel', color: '#FFDD00', contrast: '#0f1419', stages: SNIPPET_DURATIONS.length },
+  { id: 'hard', label: 'Schwer', color: '#FF8800', contrast: '#0f1419', stages: SNIPPET_DURATIONS.length },
+  { id: 'expert', label: 'Experte', color: '#FF5555', contrast: '#ffffff', stages: SNIPPET_DURATIONS.length },
+  { id: 'impossible', label: 'Unmöglich', color: '#BB55FF', contrast: '#ffffff', stages: SNIPPET_DURATIONS.length },
 ];
 
-export const GUESS_COLOR = '#31C93A';
+export const GUESS_COLOR = '#00AA00';
 
 const KEY = 'difficulty';
 

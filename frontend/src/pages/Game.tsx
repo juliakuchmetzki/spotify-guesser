@@ -108,7 +108,7 @@ export default function Game() {
   const trackToken = session?.trackToken ?? null;
   const audio = useSongAudio(activeSessionId, trackToken);
 
-  // Schwierigkeit = Farbe + Anzahl Versuche (Snippet-Stufen); nur im Frontend, das Backend kennt sie nicht
+  // Schwierigkeit = nur die Akzentfarbe; nur im Frontend, das Backend kennt sie nicht
   const [difficultyId, setDifficultyId] = useState<DifficultyId>(loadDifficulty);
   const difficulty = getDifficulty(difficultyId);
   const lengths = SNIPPET_DURATIONS.slice(0, difficulty.stages);
