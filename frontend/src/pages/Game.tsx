@@ -10,7 +10,7 @@ import { useCurrentUser } from '../hooks/useSpotify';
 import { useSpotifyPlayback, type SpotifyUnavailableReason } from '../hooks/useSpotifyPlayback';
 import { SNIPPET_DURATIONS, type PlaybackSource, type RoundResult, type SnippetDuration } from '../types';
 import { gameApi, LOGIN_URL } from '../utils/api';
-import StatBlocks from '../components/StatBlocks';
+import AttemptRows from '../components/AttemptRows';
 import { accentStyle, type DifficultyId, difficultyAt } from '../utils/difficulty';
 import { loadStats, recordRound, type RoundStats } from '../utils/roundStats';
 
@@ -74,6 +74,7 @@ interface RoundProps {
   lengths: readonly SnippetDuration[];
   attempt: number;
   disabled: boolean;
+  solved: boolean;
   source: PlaybackSource;
   sourceNote?: ReactNode;
   onSourceChange: (source: PlaybackSource) => void;
@@ -87,7 +88,7 @@ interface RoundProps {
  * Eine Runde = ein Song. Wird per key={trackToken} neu gemountet (leeres Suchfeld).
  * Der Versuch (= freigeschaltete Stufe) liegt in Game, weil auch Kopfzeile und Ergebnis ihn brauchen.
  */
-function Round({ audio, currentDifficulty, volume, onVolumeChange, lengths, attempt, disabled, source, sourceNote, onSourceChange, onPlay, onSkip, onGuess, onGiveUp }: RoundProps) {
+function Round({ audio, currentDifficulty, volume, onVolumeChange, lengths, attempt, disabled, solved, source, sourceNote, onSourceChange, onPlay, onSkip, onGuess, onGiveUp }: RoundProps) {
   const isLastAttempt = attempt === lengths.length - 1;
 
   // Überspringen schaltet die nächste Stufe frei; auf der letzten wird daraus „Aufgeben“
@@ -112,6 +113,7 @@ function Round({ audio, currentDifficulty, volume, onVolumeChange, lengths, atte
         volume={volume}
         onVolumeChange={onVolumeChange}
       />
+      <AttemptRows lengths={lengths} attempt={attempt} solved={solved} />
       <SearchBar disabled={disabled} onGuess={onGuess} isLastAttempt={isLastAttempt} onSkip={handleSkipOrGiveUp} />
     </>
   );
@@ -332,8 +334,6 @@ export default function Game() {
         </p>
       </header>
 
-      <StatBlocks total={lengths.length} skipped={attempt} solved={solved} />
-
       <section className="guess-area">
         {session.trackToken && (
           <Round
@@ -345,6 +345,7 @@ export default function Game() {
             lengths={lengths}
             attempt={attempt}
             disabled={inputDisabled}
+            solved={solved}
             source={source}
             sourceNote={sourceNote}
             onSourceChange={changeSource}
