@@ -1984,3 +1984,80 @@ th {
     display: none;
   }
 }
+
+/* Weiter-Button im Ergebnis: bekommt den Fokus automatisch (Enter geht weiter) – ohne grünen Ring */
+.btn-next:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Rückschau auf eine beendete Stufe */
+.difficulty-pill.is-done.is-reviewable {
+  cursor: pointer;
+}
+
+.difficulty-pill.is-done.is-active {
+  opacity: 1;
+}
+
+.song-review {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+.review-cover {
+  width: 200px;
+  height: 200px;
+  border-radius: 28px;
+  object-fit: cover;
+  box-shadow: var(--shadow-card);
+}
+
+.review-cover-empty {
+  display: grid;
+  place-items: center;
+  background: var(--color-surface-2);
+  font-size: 64px;
+  color: var(--color-text-tertiary);
+}
+
+.review-text h2 {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.review-text p {
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+}
+
+.review-summary {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.review-summary.is-solved {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.song-review .attempt-rows {
+  text-align: left;
+}
+
+.attempt-row.is-wrong {
+  border-color: rgb(255 92 108 / 0.3);
+  background: rgb(255 92 108 / 0.08);
+  color: var(--color-error);
+}
+
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}

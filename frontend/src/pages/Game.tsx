@@ -11,6 +11,7 @@ import { useSpotifyPlayback, type SpotifyUnavailableReason } from '../hooks/useS
 import { SNIPPET_DURATIONS, type PlaybackSource, type RoundResult, type SnippetDuration } from '../types';
 import { gameApi, LOGIN_URL } from '../utils/api';
 import AttemptRows from '../components/AttemptRows';
+import SongReview, { type FinishedSlot } from '../components/SongReview';
 import { accentStyle, type DifficultyId, difficultyAt } from '../utils/difficulty';
 import { loadStats, recordRound, type RoundStats } from '../utils/roundStats';
 
@@ -52,6 +53,24 @@ function unavailableNote(reason: SpotifyUnavailableReason | 'scope'): ReactNode 
       return 'Dieser Browser unterstützt den Spotify-Player nicht (z. B. auf dem Handy) – es läuft die Preview.';
     default:
       return 'Spotify-Player nicht verfügbar – es läuft die Preview.';
+  }
+}
+
+const finishedKey = (sessionId: number) => `finishedSlots:${sessionId}`;
+
+function loadFinished(sessionId: number): Record<number, FinishedSlot> {
+  try {
+    return JSON.parse(localStorage.getItem(finishedKey(sessionId)) ?? '{}') as Record<number, FinishedSlot>;
+  } catch {
+    return {};
+  }
+}
+
+function saveFinished(sessionId: number, all: Record<number, FinishedSlot>) {
+  try {
+    localStorage.setItem(finishedKey(sessionId), JSON.stringify(all));
+  } catch {
+    /* ohne Speicher gilt die Rückschau nur bis zum Neuladen */
   }
 }
 
@@ -131,15 +150,26 @@ export default function Game() {
   // Jede Schwierigkeitsstufe ist ein eigener Song (das Backend wählt sie); hier zählt sie für Farbe und Statistik
   const difficulty = difficultyAt(session?.difficulty ?? 0);
   const lengths = SNIPPET_DURATIONS.slice(0, difficulty.stages);
-  const theme = accentStyle(difficulty);
+
+  // Rückschau: beendete Stufen merken und per Klick auf die Pill noch einmal ansehen
+  const [finished, setFinished] = useState<Record<number, FinishedSlot>>({});
+  const [reviewing, setReviewing] = useState<number | null>(null);
+  const sessionId = session?.id ?? null;
+  const activeIndex = session?.difficulty ?? 0;
+  useEffect(() => {
+    setFinished(sessionId != null ? loadFinished(sessionId) : {});
+    setReviewing(null);
+  }, [sessionId]);
+  const review = reviewing != null ? finished[reviewing] : undefined;
+  const theme = accentStyle(difficultyAt(review ? reviewing! : activeIndex));
 
   // Dezenter Farbschimmer der ganzen Seite je nach Stufe (siehe body::before in index.css)
   useEffect(() => {
-    document.documentElement.style.setProperty('--game-tint', difficulty.color);
+    document.documentElement.style.setProperty('--game-tint', difficultyAt(review ? reviewing! : activeIndex).color);
     return () => {
       document.documentElement.style.removeProperty('--game-tint');
     };
-  }, [difficulty.color]);
+  }, [activeIndex, review, reviewing]);
 
   // Freigeschaltete Snippet-Stufe gehört zum Song (trackToken): beim Zurückwechseln bleibt sie erhalten
   const [attemptByToken, setAttemptByToken] = useState<Record<string, number>>({});
@@ -222,7 +252,21 @@ export default function Game() {
     if (!roundResult || recordedResult.current === roundResult) return;
     recordedResult.current = roundResult;
     setStats(recordRound(difficulty.id, roundResult.outcome === 'correct' ? attempt : null));
-  }, [roundResult, attempt, difficulty.id]);
+    if (sessionId != null) {
+      const slot: FinishedSlot = {
+        outcome: roundResult.outcome,
+        points: roundResult.points,
+        reveal: roundResult.reveal,
+        attempt,
+        wrong: game.wrongGuesses,
+      };
+      setFinished((all) => {
+        const next = { ...all, [activeIndex]: slot };
+        saveFinished(sessionId, next);
+        return next;
+      });
+    }
+  }, [roundResult, attempt, difficulty.id, sessionId, activeIndex, game.wrongGuesses]);
 
   const playable = me?.stats.playableCount ?? 0;
   const autoStarted = useRef(false);
@@ -314,14 +358,21 @@ export default function Game() {
   return (
     <main className="game-container" style={theme}>
       <DifficultySelector
-        value={session.difficulty}
+        value={review ? reviewing! : session.difficulty}
         slots={session.slots}
+        reviewable={Object.keys(finished).map(Number)}
         disabled={inputDisabled}
         onChange={(index) => {
           // Anderer Song: laufende Wiedergabe stoppen, der neue wird per trackToken geladen
           audio.stop();
           spotify.stop();
-          void game.switchDifficulty(index);
+          const done = session.slots.find((x) => x.difficulty === index)?.status !== 'pending';
+          if (done) {
+            setReviewing(index);
+            return;
+          }
+          setReviewing(null);
+          if (index !== session.difficulty) void game.switchDifficulty(index);
         }}
       />
 
@@ -334,7 +385,9 @@ export default function Game() {
         </p>
       </header>
 
-      <section className="guess-area">
+      {review && <SongReview slot={review} onBack={() => setReviewing(null)} />}
+
+      <section className="guess-area" hidden={!!review}>
         {session.trackToken && (
           <Round
             key={session.trackToken}
