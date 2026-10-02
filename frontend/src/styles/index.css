@@ -475,13 +475,16 @@ button {
 
 .difficulty-pills {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap; /* immer eine Zeile, auch mit Häkchen – Pills schrumpfen bei Bedarf */
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .difficulty-pill {
-  padding: 12px 28px;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 12px clamp(8px, 2.4vw, 16px);
+  white-space: nowrap;
   border: none;
   border-radius: 20px;
   background: color-mix(in srgb, var(--pill) 18%, transparent);
