@@ -11,7 +11,7 @@ import { useSpotifyPlayback, type SpotifyUnavailableReason } from '../hooks/useS
 import { SNIPPET_DURATIONS, type PlaybackSource, type RoundResult, type SnippetDuration } from '../types';
 import { gameApi, LOGIN_URL } from '../utils/api';
 import StatBlocks from '../components/StatBlocks';
-import { accentStyle, DIFFICULTIES, type DifficultyId, difficultyAt, GUESS_COLOR } from '../utils/difficulty';
+import { accentStyle, type DifficultyId, difficultyAt } from '../utils/difficulty';
 import { loadStats, recordRound, type RoundStats } from '../utils/roundStats';
 
 const SOURCE_KEY = 'previewMode';
@@ -311,16 +311,6 @@ export default function Game() {
   const solved = roundResult?.outcome === 'correct';
   return (
     <main className="game-container" style={theme}>
-      <StatBlocks
-        label={`Song ${session.round} von ${session.totalRounds}`}
-        blocks={DIFFICULTIES.map((d, i) => {
-          const status = session.slots.find((s) => s.difficulty === i)?.status ?? 'pending';
-          if (status === 'correct') return { state: 'correct', color: GUESS_COLOR };
-          if (status !== 'pending') return { state: 'failed', color: '#FF5555' };
-          return { state: i === session.difficulty ? 'current' : 'empty', color: d.color };
-        })}
-      />
-
       <DifficultySelector
         value={session.difficulty}
         slots={session.slots}
@@ -342,15 +332,7 @@ export default function Game() {
         </p>
       </header>
 
-      <StatBlocks
-        label={`${attempt} von ${lengths.length} Versuchen übersprungen`}
-        suffix={solved ? '✓ Erraten' : undefined}
-        blocks={lengths.map((_, i) => {
-          if (i < attempt) return { state: 'filled', color: difficulty.color };
-          if (solved && i === attempt) return { state: 'correct', color: GUESS_COLOR };
-          return { state: 'empty', color: difficulty.color };
-        })}
-      />
+      <StatBlocks total={lengths.length} skipped={attempt} solved={solved} />
 
       <section className="guess-area">
         {session.trackToken && (

@@ -481,36 +481,35 @@ button {
 }
 
 .difficulty-pill {
-  padding: 8px 16px;
-  border: 2px solid var(--pill);
-  border-radius: 24px;
-  background: color-mix(in srgb, var(--pill) 15%, transparent);
-  color: var(--color-text-primary);
+  padding: 12px 28px;
+  border: none;
+  border-radius: 20px;
+  background: var(--pill);
+  color: #000000;
   font: inherit;
   font-size: 13px;
   font-weight: 600;
   line-height: 1.3;
   cursor: pointer;
-  transition: background 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+  opacity: 0.55;
+  transition: opacity 0.2s ease, filter 0.2s ease;
 }
 
 .difficulty-pill:hover {
-  background: color-mix(in srgb, var(--pill) 25%, transparent);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--pill) 40%, transparent);
+  opacity: 0.85;
 }
 
 .difficulty-pill.is-active {
-  background: color-mix(in srgb, var(--pill) 30%, transparent);
+  opacity: 1;
 }
 
 .difficulty-pill.is-done {
-  opacity: 0.45;
+  opacity: 0.3;
   cursor: default;
 }
 
 .difficulty-pill.is-done:hover {
-  background: color-mix(in srgb, var(--pill) 15%, transparent);
-  box-shadow: none;
+  opacity: 0.3;
 }
 
 .game-heading h1 {
@@ -618,36 +617,30 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-/* Statistik-Balken: kleine Blöcke, 2 px hoch */
+/* Versuchs-Reihe: ■■■□□□, nach der Lösung ■■■✓ */
 .stat-blocks {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 1px;
 }
 
 .stat-block {
-  width: 28px;
-  height: 2px;
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--block) 30%, transparent);
+  width: 7px;
+  height: 10px;
+  background: #333333;
   transition: background 0.2s ease;
 }
 
-.stat-block.is-filled,
-.stat-block.is-correct,
-.stat-block.is-failed {
-  background: var(--block);
+.stat-block.is-filled {
+  background: #555555;
 }
 
-.stat-block.is-current {
-  background: color-mix(in srgb, var(--block) 70%, transparent);
-}
-
-.stat-suffix {
-  margin-left: 8px;
-  font-size: 13px;
-  font-weight: 600;
+.stat-check {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 10px;
   color: #00aa00;
 }
 
@@ -655,8 +648,8 @@ button {
 .play-btn {
   display: grid;
   place-items: center;
-  width: 100px;
-  height: 100px;
+  width: 78px;
+  height: 78px;
   padding: 0;
   flex-shrink: 0;
   border: none;
@@ -664,13 +657,13 @@ button {
   background: var(--accent);
   color: #ffffff;
   cursor: pointer;
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.4);
   transition: transform 0.3s var(--ease-spring), box-shadow 0.3s ease, background 0.3s ease, opacity 0.2s ease;
 }
 
 .play-btn:hover:not(:disabled) {
   transform: scale(1.05);
-  box-shadow: 0 8px 28px color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: 0 3px 12px rgb(0 0 0 / 0.5);
 }
 
 .play-btn:active:not(:disabled) {
@@ -685,8 +678,8 @@ button {
 .play-btn svg {
   grid-area: 1 / 1;
   display: block;
-  width: 34px;
-  height: 34px;
+  width: 46px;
+  height: 46px;
   fill: currentColor;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -704,10 +697,10 @@ button {
 @keyframes play-pulse {
   0%,
   100% {
-    box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 40%, transparent);
+    transform: scale(1);
   }
   50% {
-    box-shadow: 0 6px 32px color-mix(in srgb, var(--accent) 70%, transparent);
+    transform: scale(1.03);
   }
 }
 
@@ -844,16 +837,16 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 34px;
-  padding: 6px 14px;
-  border: 2px solid #555555;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-muted);
+  padding: 8px 14px;
+  border: none;
+  border-radius: 12px;
+  background: var(--hover-color, var(--accent));
+  color: #000000;
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 600;
   cursor: pointer;
-  transition: border-color 150ms ease, color 150ms ease;
+  opacity: 0.55;
+  transition: opacity 150ms ease, filter 150ms ease;
 }
 
 .preview-toggle button svg {
@@ -867,13 +860,12 @@ button {
 }
 
 .preview-toggle button:hover {
-  border-color: var(--hover-color, var(--accent));
-  color: var(--hover-color, var(--accent));
+  opacity: 0.9;
+  filter: brightness(1.1);
 }
 
 .preview-toggle button.active {
-  border-color: var(--hover-color, var(--accent));
-  color: var(--hover-color, var(--accent));
+  opacity: 1;
 }
 
 .source-note {
@@ -1918,7 +1910,7 @@ th {
   }
 
   .difficulty-pill {
-    padding: 8px 10px;
+    padding: 10px 12px;
     font-size: 12px;
   }
 

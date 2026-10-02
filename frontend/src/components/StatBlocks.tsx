@@ -1,22 +1,21 @@
-import type { CSSProperties } from 'react';
-
-export type BlockState = 'filled' | 'current' | 'empty' | 'correct' | 'failed';
-
 interface Props {
-  blocks: readonly { state: BlockState; color: string }[];
-  label: string;
-  /** Text hinter den Blöcken, z. B. „✓ Erraten“ */
-  suffix?: string;
+  /** Anzahl Versuche (Snippet-Längen) */
+  total: number;
+  /** Bereits übersprungene Versuche */
+  skipped: number;
+  /** Erraten: Reihe endet mit grünem Häkchen statt der offenen Blöcke */
+  solved: boolean;
 }
 
-/** Reihe kleiner Balken (2 px hoch): gefüllt = erledigt, blass = offen, grün = erraten. */
-export default function StatBlocks({ blocks, label, suffix }: Props) {
+/** Eine zusammenhängende Reihe: ■■■□□□ (übersprungen / offen), nach der Lösung ■■■✓ */
+export default function StatBlocks({ total, skipped, solved }: Props) {
+  const label = solved ? `Erraten nach ${skipped} Mal überspringen` : `${skipped} von ${total} Versuchen übersprungen`;
   return (
-    <div className="stat-blocks" role="img" aria-label={suffix ? `${label} – ${suffix}` : label}>
-      {blocks.map((b, i) => (
-        <span key={i} className={`stat-block is-${b.state}`} style={{ '--block': b.color } as CSSProperties} />
+    <div className="stat-blocks" role="img" aria-label={label}>
+      {Array.from({ length: solved ? skipped : total }, (_, i) => (
+        <span key={i} className={`stat-block ${i < skipped ? 'is-filled' : ''}`} />
       ))}
-      {suffix && <span className="stat-suffix">{suffix}</span>}
+      {solved && <span className="stat-check">✓</span>}
     </div>
   );
 }
