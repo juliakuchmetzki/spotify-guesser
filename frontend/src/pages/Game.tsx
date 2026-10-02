@@ -10,7 +10,8 @@ import { useCurrentUser } from '../hooks/useSpotify';
 import { useSpotifyPlayback, type SpotifyUnavailableReason } from '../hooks/useSpotifyPlayback';
 import { SNIPPET_DURATIONS, type PlaybackSource, type RoundResult, type SnippetDuration } from '../types';
 import { gameApi, LOGIN_URL } from '../utils/api';
-import { accentStyle, difficultyAt } from '../utils/difficulty';
+import StatBlocks from '../components/StatBlocks';
+import { accentStyle, DIFFICULTIES, type DifficultyId, difficultyAt, GUESS_COLOR } from '../utils/difficulty';
 import { loadStats, recordRound, type RoundStats } from '../utils/roundStats';
 
 const SOURCE_KEY = 'previewMode';
@@ -67,6 +68,7 @@ function loadVolume(): number {
 
 interface RoundProps {
   audio: ClipPlayer;
+  currentDifficulty: DifficultyId;
   volume: number;
   onVolumeChange: (volume: number) => void;
   lengths: readonly SnippetDuration[];
@@ -85,7 +87,7 @@ interface RoundProps {
  * Eine Runde = ein Song. Wird per key={trackToken} neu gemountet (leeres Suchfeld).
  * Der Versuch (= freigeschaltete Stufe) liegt in Game, weil auch Kopfzeile und Ergebnis ihn brauchen.
  */
-function Round({ audio, volume, onVolumeChange, lengths, attempt, disabled, source, sourceNote, onSourceChange, onPlay, onSkip, onGuess, onGiveUp }: RoundProps) {
+function Round({ audio, currentDifficulty, volume, onVolumeChange, lengths, attempt, disabled, source, sourceNote, onSourceChange, onPlay, onSkip, onGuess, onGiveUp }: RoundProps) {
   const isLastAttempt = attempt === lengths.length - 1;
 
   // Überspringen schaltet die nächste Stufe frei; auf der letzten wird daraus „Aufgeben“
@@ -106,6 +108,7 @@ function Round({ audio, volume, onVolumeChange, lengths, attempt, disabled, sour
         sourceNote={sourceNote}
         onSourceChange={onSourceChange}
         onPlay={onPlay}
+        currentDifficulty={currentDifficulty}
         volume={volume}
         onVolumeChange={onVolumeChange}
       />
@@ -127,6 +130,14 @@ export default function Game() {
   const difficulty = difficultyAt(session?.difficulty ?? 0);
   const lengths = SNIPPET_DURATIONS.slice(0, difficulty.stages);
   const theme = accentStyle(difficulty);
+
+  // Dezenter Farbschimmer der ganzen Seite je nach Stufe (siehe body::before in index.css)
+  useEffect(() => {
+    document.documentElement.style.setProperty('--game-tint', difficulty.color);
+    return () => {
+      document.documentElement.style.removeProperty('--game-tint');
+    };
+  }, [difficulty.color]);
 
   // Freigeschaltete Snippet-Stufe gehört zum Song (trackToken): beim Zurückwechseln bleibt sie erhalten
   const [attemptByToken, setAttemptByToken] = useState<Record<string, number>>({});
@@ -297,8 +308,19 @@ export default function Game() {
 
   // --- Laufendes Spiel ---
   const inputDisabled = game.busy || !!roundResult;
+  const solved = roundResult?.outcome === 'correct';
   return (
     <main className="game-container" style={theme}>
+      <StatBlocks
+        label={`Song ${session.round} von ${session.totalRounds}`}
+        blocks={DIFFICULTIES.map((d, i) => {
+          const status = session.slots.find((s) => s.difficulty === i)?.status ?? 'pending';
+          if (status === 'correct') return { state: 'correct', color: GUESS_COLOR };
+          if (status !== 'pending') return { state: 'failed', color: '#FF5555' };
+          return { state: i === session.difficulty ? 'current' : 'empty', color: d.color };
+        })}
+      />
+
       <DifficultySelector
         value={session.difficulty}
         slots={session.slots}
@@ -320,19 +342,22 @@ export default function Game() {
         </p>
       </header>
 
+      <StatBlocks
+        label={`${attempt} von ${lengths.length} Versuchen übersprungen`}
+        suffix={solved ? '✓ Erraten' : undefined}
+        blocks={lengths.map((_, i) => {
+          if (i < attempt) return { state: 'filled', color: difficulty.color };
+          if (solved && i === attempt) return { state: 'correct', color: GUESS_COLOR };
+          return { state: 'empty', color: difficulty.color };
+        })}
+      />
+
       <section className="guess-area">
-        {session.trackToken && (
-          <p className="round-stats">
-            Song {session.round}/{session.totalRounds} |{' '}
-            {roundResult?.outcome === 'correct'
-              ? `${attempt}x übersprungen → ✓ Erraten`
-              : `${attempt}mal übersprungen`}
-          </p>
-        )}
         {session.trackToken && (
           <Round
             key={session.trackToken}
             audio={clipPlayer}
+            currentDifficulty={difficulty.id}
             volume={volume}
             onVolumeChange={changeVolume}
             lengths={lengths}

@@ -61,6 +61,17 @@
   box-sizing: border-box;
 }
 
+/* Farbschimmer je Schwierigkeit: Game.tsx setzt --game-tint, 3 % über der Basisfarbe */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: color-mix(in srgb, var(--game-tint, transparent) 3%, transparent);
+  transition: background-color 200ms ease;
+}
+
 body {
   min-height: 100vh;
   background: var(--color-bg);
@@ -534,10 +545,7 @@ button {
   align-items: center;
   gap: 25px;
   width: 100%;
-  padding: 40px 20px 24px;
-  background: var(--color-surface);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
+  padding: 0;
 }
 
 .song-icon {
@@ -563,10 +571,8 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  max-width: 220px;
-  margin-top: -10px;
-  font-size: 12px;
+  flex-shrink: 0;
+  font-size: 13px;
   color: #888888;
 }
 
@@ -582,12 +588,11 @@ button {
 }
 
 .volume-control input[type='range'] {
-  flex: 1;
-  min-width: 0;
+  width: 60px;
   height: 4px;
   appearance: none;
   border-radius: 2px;
-  background: linear-gradient(to right, #888888 var(--volume), var(--color-timeline-rest) var(--volume));
+  background: linear-gradient(to right, var(--slider-color, #888888) var(--volume), var(--color-timeline-rest) var(--volume));
   cursor: pointer;
 }
 
@@ -596,7 +601,7 @@ button {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #888888;
+  background: var(--slider-color, #888888);
 }
 
 .volume-control input[type='range']::-moz-range-thumb {
@@ -604,7 +609,7 @@ button {
   height: 12px;
   border: none;
   border-radius: 50%;
-  background: #888888;
+  background: var(--slider-color, #888888);
 }
 
 .volume-value {
@@ -613,20 +618,45 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-.round-stats {
-  margin-bottom: 12px;
+/* Statistik-Balken: kleine Blöcke, 2 px hoch */
+.stat-blocks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.stat-block {
+  width: 28px;
+  height: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--block) 30%, transparent);
+  transition: background 0.2s ease;
+}
+
+.stat-block.is-filled,
+.stat-block.is-correct,
+.stat-block.is-failed {
+  background: var(--block);
+}
+
+.stat-block.is-current {
+  background: color-mix(in srgb, var(--block) 70%, transparent);
+}
+
+.stat-suffix {
+  margin-left: 8px;
   font-size: 13px;
-  text-align: center;
-  color: #888888;
-  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #00aa00;
 }
 
 /* Play/Pause: beide Icons im selben Grid-Feld → exakt zentriert, Wechsel per Überblendung */
 .play-btn {
   display: grid;
   place-items: center;
-  width: 70px;
-  height: 70px;
+  width: 100px;
+  height: 100px;
   padding: 0;
   flex-shrink: 0;
   border: none;
@@ -655,8 +685,8 @@ button {
 .play-btn svg {
   grid-area: 1 / 1;
   display: block;
-  width: 24px;
-  height: 24px;
+  width: 34px;
+  height: 34px;
   fill: currentColor;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -788,18 +818,21 @@ button {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-start;
-  gap: 8px 12px;
+  justify-content: center;
+  gap: 12px 16px;
   width: 100%;
-  margin-top: -10px; /* 25px Gap → 15px bis zu den Buttons */
 }
 
-.player-footer .player-status {
-  margin: 0 0 0 auto;
+.player-divider {
+  width: 1px;
+  height: 20px;
+  background: #444444;
+}
+
+.audio-player > .player-status {
+  margin: -8px 0 0;
   font-size: 12px;
-  font-weight: 400;
   color: #666666;
-  opacity: 0.6;
 }
 
 .preview-toggle {
@@ -811,16 +844,16 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 32px;
-  padding: 6px 12px;
-  border: 1px solid #555555;
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 2px solid #555555;
   border-radius: 6px;
   background: transparent;
   color: var(--color-muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
   cursor: pointer;
-  transition: border-color 0.3s ease, color 0.3s ease;
+  transition: border-color 150ms ease, color 150ms ease;
 }
 
 .preview-toggle button svg {
@@ -834,13 +867,13 @@ button {
 }
 
 .preview-toggle button:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--hover-color, var(--accent));
+  color: var(--hover-color, var(--accent));
 }
 
 .preview-toggle button.active {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--hover-color, var(--accent));
+  color: var(--hover-color, var(--accent));
 }
 
 .source-note {
