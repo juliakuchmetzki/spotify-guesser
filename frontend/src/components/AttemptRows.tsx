@@ -1,5 +1,3 @@
-import { formatDuration } from '../utils/format';
-
 interface Props {
   lengths: readonly number[];
   /** Index der aktuell freigeschalteten Stufe = Anzahl bereits übersprungener Versuche */
@@ -28,9 +26,8 @@ export default function AttemptRows({ lengths, attempt, solved }: Props) {
                 <span>Übersprungen</span>
               </>
             )}
-            {state === 'current' && <span>Aktueller Versuch</span>}
             {state === 'solved' && <span>✓ Erraten</span>}
-            <span className="attempt-length">{formatDuration(length)}</span>
+            {(state === 'current' || state === 'open') && <span className="attempt-number">{i + 1}</span>}
           </li>
         );
       })}

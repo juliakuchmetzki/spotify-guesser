@@ -23,7 +23,7 @@
   --color-overlay: rgb(0 0 0 / 0.7);
 
   /* Schrift: Systemschriften, kein Webfont-Download */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Roboto, sans-serif;
+  --font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Roboto, sans-serif;
 
   /* Radien */
   --radius-button: 8px;
@@ -626,12 +626,12 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid rgb(255 255 255 / 0.06);
-  border-radius: 10px;
+  min-height: 46px;
+  padding: 0 18px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 14px;
   background: rgb(255 255 255 / 0.03);
-  font-size: 14px;
+  font-size: 15px;
   color: var(--color-text-secondary);
   transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
 }
@@ -646,15 +646,16 @@ button {
   stroke-linejoin: round;
 }
 
-.attempt-length {
-  margin-left: auto;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
+.attempt-number {
+  font-size: 14px;
   color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
 .attempt-row.is-open {
-  opacity: 0.45;
+  border-style: dashed;
+  background: transparent;
+  opacity: 0.6;
 }
 
 .attempt-row.is-current,
@@ -662,12 +663,6 @@ button {
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--color-text-primary);
-}
-
-.attempt-row.is-current .attempt-length,
-.attempt-row.is-solved .attempt-length {
-  color: var(--accent);
-  font-weight: 600;
 }
 
 /* Play/Pause: beide Icons im selben Grid-Feld → exakt zentriert, Wechsel per Überblendung */
@@ -681,7 +676,7 @@ button {
   border: none;
   border-radius: 50%;
   background: var(--accent);
-  color: #ffffff;
+  color: #0f1419;
   cursor: pointer;
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.4);
   transition: transform 0.3s var(--ease-spring), box-shadow 0.3s ease, background 0.3s ease, opacity 0.2s ease;
@@ -704,9 +699,12 @@ button {
 .play-btn svg {
   grid-area: 1 / 1;
   display: block;
-  width: 46px;
-  height: 46px;
+  width: 40px;
+  height: 40px;
   fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
@@ -751,9 +749,9 @@ button {
 
 .timeline-track {
   position: relative;
-  height: 8px;
-  border-radius: 4px;
-  background: var(--color-timeline-rest);
+  height: 14px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 18%, #0f1419);
 }
 
 .timeline-unlocked,
@@ -767,7 +765,7 @@ button {
 }
 
 .timeline-unlocked {
-  background: #444444;
+  background: color-mix(in srgb, var(--accent) 50%, #0f1419);
 }
 
 .timeline-played {
@@ -779,9 +777,9 @@ button {
   content: '';
   position: absolute;
   top: 50%;
-  right: -6px;
-  width: 12px;
-  height: 12px;
+  right: -8px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
@@ -810,10 +808,9 @@ button {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 1px;
-  transform: translateX(-0.5px);
-  background: var(--color-surface);
-  opacity: 0.6;
+  width: 2px;
+  transform: translateX(-1px);
+  background: #0f1419;
   pointer-events: none;
 }
 

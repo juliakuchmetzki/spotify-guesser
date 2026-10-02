@@ -112,7 +112,7 @@ export default function AudioPlayer({
         aria-label={isPlaying ? 'Pause' : `${formatDuration(length)} abspielen`}
       >
         <svg className="icon-play" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M8 5v14l11-7z" />
+          <path d="M9 6.5v11l9-5.5z" />
         </svg>
         <svg className="icon-pause" viewBox="0 0 24 24" aria-hidden="true">
           <rect x="6" y="4" width="4" height="16" rx="1" />
@@ -128,9 +128,6 @@ export default function AudioPlayer({
           clipDuration={audio.clipLength}
           playId={audio.playId}
         />
-        <span className="current-time" aria-live="polite">
-          {formatDuration(length)}
-        </span>
       </div>
       <div className="player-footer">
         <label className="volume-control">
@@ -147,7 +144,6 @@ export default function AudioPlayer({
             style={{ '--volume': `${volume}%` } as CSSProperties}
             onChange={(e) => onVolumeChange(Number(e.target.value))}
           />
-          <span className="volume-value">{volume}%</span>
         </label>
         <span className="player-divider" aria-hidden="true" />
         <div className="preview-toggle" role="radiogroup" aria-label="Wiedergabe">
