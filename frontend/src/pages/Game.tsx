@@ -54,8 +54,21 @@ function unavailableNote(reason: SpotifyUnavailableReason | 'scope'): ReactNode 
   }
 }
 
+const VOLUME_KEY = 'volume';
+
+function loadVolume(): number {
+  try {
+    const value = Number(localStorage.getItem(VOLUME_KEY));
+    return localStorage.getItem(VOLUME_KEY) !== null && value >= 0 && value <= 100 ? Math.round(value) : 80;
+  } catch {
+    return 80;
+  }
+}
+
 interface RoundProps {
   audio: ClipPlayer;
+  volume: number;
+  onVolumeChange: (volume: number) => void;
   lengths: readonly SnippetDuration[];
   attempt: number;
   disabled: boolean;
@@ -72,7 +85,7 @@ interface RoundProps {
  * Eine Runde = ein Song. Wird per key={trackToken} neu gemountet (leeres Suchfeld).
  * Der Versuch (= freigeschaltete Stufe) liegt in Game, weil auch Kopfzeile und Ergebnis ihn brauchen.
  */
-function Round({ audio, lengths, attempt, disabled, source, sourceNote, onSourceChange, onPlay, onSkip, onGuess, onGiveUp }: RoundProps) {
+function Round({ audio, volume, onVolumeChange, lengths, attempt, disabled, source, sourceNote, onSourceChange, onPlay, onSkip, onGuess, onGiveUp }: RoundProps) {
   const isLastAttempt = attempt === lengths.length - 1;
 
   // Überspringen schaltet die nächste Stufe frei; auf der letzten wird daraus „Aufgeben“
@@ -93,6 +106,8 @@ function Round({ audio, lengths, attempt, disabled, source, sourceNote, onSource
         sourceNote={sourceNote}
         onSourceChange={onSourceChange}
         onPlay={onPlay}
+        volume={volume}
+        onVolumeChange={onVolumeChange}
       />
       <SearchBar disabled={disabled} onGuess={onGuess} isLastAttempt={isLastAttempt} onSkip={handleSkipOrGiveUp} />
     </>
@@ -130,6 +145,23 @@ export default function Game() {
   const source: PlaybackSource = spotifyFallback ? 'preview' : (storedSource ?? (canStream ? 'start' : 'preview'));
   // Player schon vor dem Spielstart verbinden, damit feststeht, ob Spotify wirklich geht
   const spotify = useSpotifyPlayback(source === 'start' && canStream, activeSessionId, trackToken);
+  // Lautstärke (0–100) gilt für Preview und Spotify und bleibt gespeichert
+  const [volume, setVolume] = useState(loadVolume);
+  const { setVolume: setAudioVolume } = audio;
+  const { setVolume: setSpotifyVolume } = spotify;
+  useEffect(() => {
+    setAudioVolume(volume / 100);
+    setSpotifyVolume(volume / 100);
+  }, [volume, setAudioVolume, setSpotifyVolume, spotify.status]);
+  const changeVolume = (next: number) => {
+    setVolume(next);
+    try {
+      localStorage.setItem(VOLUME_KEY, String(next));
+    } catch {
+      /* ohne Speicher gilt die Lautstärke nur für diese Sitzung */
+    }
+  };
+
   const spotifyReady = source === 'start' && canStream && spotify.status === 'ready';
   const spotifyPending = source === 'start' && canStream && (spotify.status === 'idle' || spotify.status === 'loading');
   const startGame = (resume = false) => void game.start(resume, spotifyReady);
@@ -290,9 +322,19 @@ export default function Game() {
 
       <section className="guess-area">
         {session.trackToken && (
+          <p className="round-stats">
+            Song {session.round}/{session.totalRounds} |{' '}
+            {roundResult?.outcome === 'correct'
+              ? `${attempt}x übersprungen → ✓ Erraten`
+              : `${attempt}mal übersprungen`}
+          </p>
+        )}
+        {session.trackToken && (
           <Round
             key={session.trackToken}
             audio={clipPlayer}
+            volume={volume}
+            onVolumeChange={changeVolume}
             lengths={lengths}
             attempt={attempt}
             disabled={inputDisabled}

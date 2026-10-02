@@ -21,6 +21,8 @@ export function useSongAudio(sessionId: number | null, trackToken: string | null
   const fullOffsetRef = useRef(0); // Pausenposition der ganzen Preview (s)
   const fullStartRef = useRef(0); // ctx.currentTime beim Start der ganzen Preview
   const frameRef = useRef(0);
+  const volumeRef = useRef(1); // 0–1, gilt auch für bereits laufende Wiedergabe
+  const masterRef = useRef<GainNode | null>(null);
 
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [mode, setMode] = useState<PlaybackMode>(null);
@@ -101,6 +103,10 @@ export function useSongAudio(sessionId: number | null, trackToken: string | null
     const startAt = ctx.currentTime + START_DELAY;
     const source = ctx.createBufferSource();
     source.buffer = buffer;
+    const master = ctx.createGain();
+    master.gain.value = volumeRef.current;
+    master.connect(ctx.destination);
+    masterRef.current = master;
     if (fade) {
       const gain = ctx.createGain();
       const f = Math.min(FADE_SECONDS, length / 4);
@@ -108,9 +114,9 @@ export function useSongAudio(sessionId: number | null, trackToken: string | null
       gain.gain.linearRampToValueAtTime(1, startAt + f);
       gain.gain.setValueAtTime(1, startAt + length - f);
       gain.gain.linearRampToValueAtTime(0, startAt + length);
-      source.connect(gain).connect(ctx.destination);
+      source.connect(gain).connect(master);
     } else {
-      source.connect(ctx.destination);
+      source.connect(master);
     }
     source.onended = () => {
       if (sourceRef.current !== source) return;
@@ -164,7 +170,12 @@ export function useSongAudio(sessionId: number | null, trackToken: string | null
     stop();
   }, [stop]);
 
-  return { status, mode, clipLength, playId, position, duration, playClip, playFull, pauseFull, stop };
+  const setVolume = useCallback((volume: number) => {
+    volumeRef.current = volume;
+    if (masterRef.current) masterRef.current.gain.value = volume;
+  }, []);
+
+  return { status, mode, clipLength, playId, position, duration, playClip, playFull, pauseFull, stop, setVolume };
 }
 
 export type SongAudio = ReturnType<typeof useSongAudio>;

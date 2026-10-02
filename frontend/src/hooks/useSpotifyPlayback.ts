@@ -44,6 +44,7 @@ export function useSpotifyPlayback(enabled: boolean, sessionId: number | null, t
   const pauseTimerRef = useRef(0);
   const waitingRef = useRef<((state: Spotify.PlaybackState) => void) | null>(null);
   const requestRef = useRef(0);
+  const volumeRef = useRef(0.8);
 
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [reason, setReason] = useState<SpotifyUnavailableReason | null>(null);
@@ -74,7 +75,7 @@ export function useSpotifyPlayback(enabled: boolean, sessionId: number | null, t
         if (cancelled || !window.Spotify) return;
         const player = new window.Spotify.Player({
           name: 'Song Guesser',
-          volume: 0.8,
+          volume: volumeRef.current,
           getOAuthToken: (cb) => {
             userApi.spotifyToken().then(cb, () => fail('auth'));
           },
@@ -192,5 +193,10 @@ export function useSpotifyPlayback(enabled: boolean, sessionId: number | null, t
     [sessionId, trackToken, stop],
   );
 
-  return { status, reason, starting, mode, clipLength, playId, playClip, stop };
+  const setVolume = useCallback((volume: number) => {
+    volumeRef.current = volume;
+    void playerRef.current?.setVolume(volume).catch(() => undefined);
+  }, []);
+
+  return { status, reason, starting, mode, clipLength, playId, playClip, stop, setVolume };
 }

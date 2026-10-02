@@ -10,7 +10,7 @@ interface Props {
   onChange: (index: number) => void;
 }
 
-/** Fünf Pills, je eine pro Song: Rahmen in der Stufenfarbe; aktive kräftig, erledigte abgeblendet mit Häkchen/Kreuz */
+/** Fünf Pills, je eine pro Song: Rahmen + 15 % Hintergrund in der Stufenfarbe; aktive kräftig, erledigte abgeblendet mit Häkchen/Kreuz */
 export default function DifficultySelector({ value, slots, disabled, onChange }: Props) {
   return (
     <div className="difficulty-pills" role="radiogroup" aria-label="Schwierigkeit">

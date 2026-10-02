@@ -20,6 +20,7 @@ declare namespace Spotify {
     resume(): Promise<void>;
     seek(positionMs: number): Promise<void>;
     activateElement(): Promise<void>;
+    setVolume(volume: number): Promise<void>;
     addListener(event: 'ready' | 'not_ready', cb: (data: { device_id: string }) => void): boolean;
     addListener(event: 'player_state_changed', cb: (state: PlaybackState | null) => void): boolean;
     addListener(

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { PlaybackMode } from '../hooks/useSongAudio';
 import type { PlaybackSource, SnippetDuration } from '../types';
 import { formatDuration } from '../utils/format';
@@ -26,6 +26,9 @@ interface Props {
   sourceNote?: ReactNode;
   onSourceChange: (source: PlaybackSource) => void;
   onPlay: (duration: SnippetDuration) => void;
+  /** Lautstärke 0–100 */
+  volume: number;
+  onVolumeChange: (volume: number) => void;
 }
 
 const SOURCE_ICONS: Record<PlaybackSource, ReactNode> = {
@@ -56,6 +59,8 @@ export default function AudioPlayer({
   sourceNote,
   onSourceChange,
   onPlay,
+  volume,
+  onVolumeChange,
 }: Props) {
   const length = lengths[currentIndex];
   const isPlaying = audio.mode === 'clip';
@@ -81,6 +86,23 @@ export default function AudioPlayer({
         <circle cx="6" cy="18" r="3" />
         <circle cx="18" cy="16" r="3" />
       </svg>
+
+      <label className="volume-control">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7" />
+        </svg>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={volume}
+          aria-label="Lautstärke"
+          style={{ '--volume': `${volume}%` } as CSSProperties}
+          onChange={(e) => onVolumeChange(Number(e.target.value))}
+        />
+        <span className="volume-value">{volume}%</span>
+      </label>
 
       <button
         type="button"
