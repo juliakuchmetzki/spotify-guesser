@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useSongSearch } from '../hooks/useSpotify';
 import type { Song } from '../types';
 
@@ -16,6 +16,8 @@ export default function SearchBar({ disabled, onGuess, isLastAttempt, onSkip }: 
   const [highlighted, setHighlighted] = useState(-1);
   const { results, loading } = useSongSearch(query);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const [placement, setPlacement] = useState<{ up: boolean; maxHeight: number }>({ up: false, maxHeight: 280 });
   const listId = useId();
 
   useEffect(() => setHighlighted(-1), [results]);
@@ -54,12 +56,27 @@ export default function SearchBar({ disabled, onGuess, isLastAttempt, onSkip }: 
   };
 
   const showList = open && query.trim().length > 0;
+
+  // Liste nur so hoch, wie der Platz im Fenster reicht; bei wenig Platz unten nach oben aufklappen
+  useLayoutEffect(() => {
+    if (!showList || !fieldRef.current) return;
+    const place = () => {
+      const rect = fieldRef.current!.getBoundingClientRect();
+      const below = window.innerHeight - rect.bottom - 16;
+      const above = rect.top - 16;
+      const up = below < 200 && above > below;
+      setPlacement({ up, maxHeight: Math.max(120, Math.min(280, up ? above : below)) });
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [showList, results.length]);
   // Mit Vorschlägen wird aus „Überspringen“ ein grüner „Raten“-Button (markierter oder erster Treffer)
   const canGuess = showList && results.length > 0;
 
   return (
     <form className="search-skip-container" onSubmit={handleSubmit}>
-      <div className="search-field">
+      <div className="search-field" ref={fieldRef}>
         <svg className="search-icon" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="11" cy="11" r="7" />
           <path d="m20 20-3.5-3.5" />
@@ -85,7 +102,12 @@ export default function SearchBar({ disabled, onGuess, isLastAttempt, onSkip }: 
           onKeyDown={handleKeyDown}
         />
         {showList && (
-          <ul className="autocomplete-list" id={listId} role="listbox">
+          <ul
+            className={`autocomplete-list ${placement.up ? 'is-up' : ''}`}
+            id={listId}
+            role="listbox"
+            style={{ maxHeight: placement.maxHeight }}
+          >
             {results.map((song, i) => (
               <li
                 key={song.id}

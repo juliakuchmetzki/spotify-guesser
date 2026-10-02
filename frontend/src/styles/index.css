@@ -974,12 +974,17 @@ button {
   left: 0;
   right: 0;
   z-index: 10;
-  max-height: 280px;
+  max-height: 280px; /* wird per Inline-Style an den Platz im Fenster angepasst */
   overflow-y: auto;
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+}
+
+.autocomplete-list.is-up {
+  top: auto;
+  bottom: calc(100% + 4px);
 }
 
 .autocomplete-item {
